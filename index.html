@@ -1,0 +1,73 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="styling/index.css">
+</head>
+
+<body>
+
+    <div id="loader">
+        <canvas id="loader-canvas"></canvas>
+
+        <div class="loader-aurora">
+            <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="lf1">
+                        <feGaussianBlur stdDeviation="58" />
+                    </filter>
+                    <filter id="lf2">
+                        <feGaussianBlur stdDeviation="72" />
+                    </filter>
+                    <filter id="lf3">
+                        <feGaussianBlur stdDeviation="62" />
+                    </filter>
+                </defs>
+            </svg>
+        </div>
+
+        <div class="loader-bottom-glow"></div>
+    </div>
+
+    <div id="player">
+        <video id="v" playsinline></video>
+
+        <div id="tap-left" class="tap-zone"></div>
+        <div id="tap-right" class="tap-zone"></div>
+
+        <div id="skip-left" class="skip-pill"><span id="skip-left-lbl">+10 seconds</span></div>
+        <div id="skip-right" class="skip-pill"><span id="skip-right-lbl">+10 seconds</span></div>
+
+        <div id="center-flash"><i class="fa-solid fa-play" id="ci"></i></div>
+
+        <div id="progress-container">
+            <div id="track-wrap">
+                <div id="track">
+                    <div id="buf"></div>
+                    <div id="prog"></div>
+                    <div id="thumb"></div>
+                </div>
+            </div>
+            <div id="time-row">
+                <span id="t-cur">0:00</span>
+                <span id="t-dur">0:00</span>
+            </div>
+        </div>
+
+        <div id="controls">
+            <div id="control-row">
+                <button id="btn-play"><i class="fa-solid fa-play" id="play-ico"></i></button>
+                <div style="flex: 1;"></div>
+                <button id="btn-pip"><i class="fa-solid fa-window-restore"></i></button>
+                <button id="btn-fullscreen"><i class="fa-solid fa-expand"></i></button>
+            </div>
+        </div>
+
+        <div id="error-screen">
+            <div class="err-text">Source Not Found</div>
+        </div>
+    </div>
+
+    <script src="javascript/index.js"></script>
+</body>

@@ -1,0 +1,463 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap');
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    margin: 0;
+    background: #000000;
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    font-family: 'Manrope', sans-serif;
+}
+
+#loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    overflow: hidden;
+    pointer-events: all;
+}
+
+#loader.out {
+    animation: loaderOut 0.8s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+    pointer-events: none;
+}
+
+@keyframes loaderOut {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.05);
+    }
+}
+
+#loader-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.loader-aurora {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.loader-aurora svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes lFadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#player {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+video.ready {
+    opacity: 1;
+}
+
+#error-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#error-screen.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#error-screen i {
+    font-size: 52px;
+    color: rgba(255, 255, 255, 0.25);
+    margin-bottom: 20px;
+}
+
+.err-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(128, 128, 128, 0.85);
+    letter-spacing: 0.03em;
+}
+
+.tap-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    z-index: 5;
+    cursor: pointer;
+}
+
+#tap-left {
+    left: 0;
+}
+
+#tap-right {
+    right: 0;
+}
+
+.skip-pill {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%) translateY(-24px);
+    pointer-events: none;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.4s cubic-bezier(0.25, 1.4, 0.5, 1);
+}
+
+#skip-left {
+    left: 8%;
+}
+
+#skip-right {
+    right: 8%;
+}
+
+.skip-pill span {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.skip-pill.show {
+    opacity: 1;
+    transform: translateY(-50%);
+    transition: opacity 0.2s ease, transform 0.45s cubic-bezier(0.25, 1.4, 0.5, 1);
+}
+
+.skip-pill.hide {
+    opacity: 0;
+    transform: translateY(calc(-50% + 10px));
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+#center-flash {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 15;
+}
+
+#center-flash i {
+    font-size: 64px;
+    color: #fff;
+    opacity: 0;
+    transform: scale(0.4);
+}
+
+#center-flash i.pop {
+    animation: cPop 0.7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes cPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.4);
+    }
+
+    15% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+
+    50% {
+        transform: scale(0.95);
+    }
+
+    75% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.1);
+    }
+}
+
+#progress-container {
+    position: absolute;
+    bottom: 80px;
+    left: 0;
+    right: 0;
+    padding: 0 24px;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+    transform-origin: center bottom;
+    transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    pointer-events: none;
+}
+
+#progress-container.on {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+#controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0 24px 20px 24px;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+    transform-origin: center bottom;
+    transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    pointer-events: none;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
+    padding-bottom: 40px;
+}
+
+#controls.on {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+#control-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#btn-play,
+#btn-pip,
+#btn-fullscreen {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    outline: none;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.85;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#btn-play i,
+#btn-pip i,
+#btn-fullscreen i {
+    font-size: 20px;
+    color: #fff;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#btn-play:hover,
+#btn-pip:hover,
+#btn-fullscreen:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+#btn-play:active i,
+#btn-pip:active i,
+#btn-fullscreen:active i {
+    transform: scale(0.85);
+    transition: transform 0.1s ease;
+}
+
+#progress-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#track-wrap {
+    width: 100%;
+    padding: 10px 0;
+    cursor: pointer;
+}
+
+#track {
+    position: relative;
+    height: 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#track-wrap:hover #track,
+#track.drag {
+    height: 8px;
+}
+
+make the fade circual like yk inward U shape html,
+body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    height: 100%;
+}
+
+.loader-bottom-glow {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    height: 25%;
+    background: radial-gradient(ellipse 150% 100% at 50% 100%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 20%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    animation: glowFadeUp 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@media (max-width: 1200px) {
+    .loader-bottom-glow {
+        height: 45vh;
+    }
+}
+
+@media (max-width: 800px) {
+    .loader-bottom-glow {
+        height: 30vh;
+    }
+}
+
+@media (max-width: 500px) {
+    .loader-bottom-glow {
+        height: 25vh;
+    }
+}
+
+@keyframes glowFadeUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#buf {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    pointer-events: none;
+    transition: width 0.4s ease-out;
+}
+
+#prog {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: #fff;
+    border-radius: 4px;
+    pointer-events: none;
+    transition: width 0.1s linear;
+}
+
+#thumb {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    will-change: transform;
+}
+
+#track-wrap:hover #thumb,
+#track.drag #thumb {
+    transform: translate(-50%, -50%) scale(1);
+    background: #fff;
+}
+
+#thumb:hover {
+    background: #fff;
+}
+
+#time-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+}
+
+#t-cur,
+#t-dur {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 500px) {
+    #controls {
+        padding: 0 16px 16px 16px;
+    }
+}
