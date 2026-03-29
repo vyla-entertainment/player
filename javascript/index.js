@@ -28,7 +28,6 @@
         if (!alive) return;
         var dt = Math.min((ts - last) / 16, 4);
         last = ts;
-
         ctx.clearRect(0, 0, W, H);
         for (var i = 0; i < dots.length; i++) {
             var d = dots[i];
@@ -42,7 +41,6 @@
             ctx.fillStyle = 'rgba(255,255,255,' + Math.min(a, 0.55) + ')';
             ctx.fill();
         }
-
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
@@ -53,7 +51,7 @@
         setTimeout(function () {
             alive = false;
             loader.style.display = 'none';
-        }, 820);
+        }, 1000);
     }, 3400);
 })();
 
@@ -61,10 +59,7 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'F' || e.key === 'f') {
         var player = document.getElementById('player');
         if (!document.fullscreenElement) {
-            if (player.requestFullscreen) player.requestFullscreen();
-            else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-            else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
-            else if (player.msRequestFullscreen) player.msRequestFullscreen();
+            (player.requestFullscreen || player.webkitRequestFullscreen || player.mozRequestFullScreen || player.msRequestFullscreen || function () { }).call(player);
         } else {
             document.exitFullscreen();
         }
@@ -73,6 +68,19 @@ document.addEventListener('keydown', function (e) {
 
 var p = new URLSearchParams(location.search);
 var id = p.get('id'), s = p.get('s'), e = p.get('e');
+
+function showNowPlayingToast(title) {
+    var toast = document.getElementById('now-playing-toast');
+    toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Now Playing</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+    toast.className = '';
+    setTimeout(function () {
+        toast.classList.add('enter');
+        setTimeout(function () {
+            toast.classList.remove('enter');
+            toast.classList.add('exit');
+        }, 3800);
+    }, 4500);
+}
 
 if (id) {
     fetch('/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id))
@@ -83,11 +91,10 @@ if (id) {
                 return;
             }
             play(d.url);
+            var title = 'Unknown';
             if (d.meta) {
                 var m = d.meta;
-                var title = (m.title || m.name || 'Unknown');
-                if (s) title += ' S' + s + 'E' + (e || '1');
-                document.title = title;
+                title = (m.title || m.name || 'Unknown');
                 if ('mediaSession' in navigator) {
                     var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
                     navigator.mediaSession.metadata = new MediaMetadata({
@@ -96,6 +103,10 @@ if (id) {
                     });
                 }
             }
+            if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+            document.title = title;
+            document.getElementById('title-text').textContent = title;
+            showNowPlayingToast(title);
         }).catch(() => {
             document.getElementById('error-screen').classList.add('show');
         });
@@ -121,8 +132,11 @@ function fmt(sec) {
 function play(raw) {
     var src = '/api?url=' + encodeURIComponent(raw);
     var v = document.getElementById('v');
+    var controlsWrapper = document.getElementById('player-controls-wrapper');
     var ctrl = document.getElementById('controls');
     var progressContainer = document.getElementById('progress-container');
+    var titleBar = document.getElementById('title-bar');
+    var vignette = document.getElementById('vignette');
     var trackEl = document.getElementById('track');
     var wrap = document.getElementById('track-wrap');
     var prog = document.getElementById('prog');
@@ -140,6 +154,10 @@ function play(raw) {
     var tapR = document.getElementById('tap-right');
     var btnPip = document.getElementById('btn-pip');
     var btnFullscreen = document.getElementById('btn-fullscreen');
+    var btnSpeed = document.getElementById('btn-speed');
+    var speedMenu = document.getElementById('speed-menu');
+    var speedOpts = document.querySelectorAll('.speed-opt');
+    var tooltip = document.getElementById('tooltip');
 
     var hideTimer = null;
     var tapTimer = null;
@@ -148,19 +166,24 @@ function play(raw) {
     var skipTimers = { left: null, right: null };
     var dragging = false;
     var shown = false;
+    var speedOpen = false;
 
     function showUI(pin) {
-        ctrl.classList.add('on');
-        progressContainer.classList.add('on');
+        controlsWrapper.classList.add('on');
+        titleBar.classList.add('on');
+        vignette.classList.add('on');
         shown = true;
         clearTimeout(hideTimer);
-        if (!pin && !v.paused) hideTimer = setTimeout(hideUI, 3000);
+        if (!pin && !v.paused) hideTimer = setTimeout(hideUI, 3200);
     }
 
     function hideUI() {
-        ctrl.classList.remove('on');
-        progressContainer.classList.remove('on');
+        controlsWrapper.classList.remove('on');
+        titleBar.classList.remove('on');
+        vignette.classList.remove('on');
         shown = false;
+        speedMenu.classList.remove('open');
+        speedOpen = false;
     }
 
     function syncIcon() {
@@ -194,13 +217,24 @@ function play(raw) {
         tCur.textContent = fmt(v.currentTime);
     }
 
+    function hoverTooltip(x) {
+        if (!v.duration) return;
+        var r = wrap.getBoundingClientRect();
+        var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+        var time = pct * v.duration;
+        tooltip.textContent = fmt(time);
+        var left = (pct * r.width);
+        tooltip.style.left = left + 'px';
+        tooltip.classList.add('show');
+    }
+
     function doSkip(dir, taps) {
         var secs = taps * 10;
         var delta = dir === 'left' ? -secs : secs;
         v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + delta));
         var el = dir === 'left' ? skipL : skipR;
         var lbl = dir === 'left' ? skipLLbl : skipRLbl;
-        lbl.textContent = (dir === 'left' ? '-' : '+') + secs + ' seconds';
+        lbl.textContent = (dir === 'left' ? '-' : '+') + secs + ' sec';
         el.classList.remove('hide');
         void el.offsetWidth;
         el.classList.add('show');
@@ -208,8 +242,8 @@ function play(raw) {
         skipTimers[dir] = setTimeout(function () {
             el.classList.remove('show');
             el.classList.add('hide');
-            setTimeout(function () { el.classList.remove('hide'); }, 400);
-        }, 800);
+            setTimeout(function () { el.classList.remove('hide'); }, 420);
+        }, 900);
         haptic([8, 40, 8]);
     }
 
@@ -217,17 +251,11 @@ function play(raw) {
         v.classList.add('ready');
         v.currentTime = 0.1;
         tDur.textContent = fmt(v.duration);
-        setTimeout(function () { showUI(true); }, 150);
+        setTimeout(function () { showUI(true); }, 180);
     }
 
     if (Hls.isSupported()) {
-        var hls = new Hls({
-            startLevel: -1,
-            maxBufferLength: 20,
-            maxMaxBufferLength: 40,
-            maxBufferSize: 30 * 1000 * 1000,
-            enableWorker: true
-        });
+        var hls = new Hls({ startLevel: -1, maxBufferLength: 20, maxMaxBufferLength: 40, maxBufferSize: 30 * 1000 * 1000, enableWorker: true });
         hls.loadSource(src);
         hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, onReady);
@@ -237,11 +265,7 @@ function play(raw) {
     }
 
     v.addEventListener('timeupdate', setProg);
-    v.addEventListener('durationchange', function () {
-        if (v.duration) {
-            tDur.textContent = fmt(v.duration);
-        }
-    });
+    v.addEventListener('durationchange', function () { if (v.duration) tDur.textContent = fmt(v.duration); });
     v.addEventListener('play', function () { syncIcon(); showUI(); });
     v.addEventListener('pause', function () { syncIcon(); showUI(true); clearTimeout(hideTimer); });
 
@@ -251,32 +275,44 @@ function play(raw) {
         v.paused ? v.play() : v.pause();
     });
 
+    btnSpeed.addEventListener('click', function (e) {
+        e.stopPropagation();
+        speedOpen = !speedOpen;
+        speedMenu.classList.toggle('open', speedOpen);
+        showUI(true);
+        haptic(6);
+    });
+
+    speedOpts.forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var rate = parseFloat(this.dataset.speed);
+            v.playbackRate = rate;
+            speedOpts.forEach(function (b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            speedMenu.classList.remove('open');
+            speedOpen = false;
+            haptic(6);
+            showUI();
+        });
+    });
+
     if (btnPip) {
         if (!document.pictureInPictureEnabled) btnPip.style.display = 'none';
         btnPip.addEventListener('click', function (e) {
             e.stopPropagation();
             haptic(10);
-            if (document.pictureInPictureElement) {
-                document.exitPictureInPicture();
-            } else if (v.requestPictureInPicture) {
-                v.requestPictureInPicture();
-            }
+            if (document.pictureInPictureElement) document.exitPictureInPicture();
+            else if (v.requestPictureInPicture) v.requestPictureInPicture();
         });
     }
 
     if (btnFullscreen) {
-        var fullscreenIcon = btnFullscreen.querySelector('i');
-
-        function updateFullscreenIcon() {
-            if (document.fullscreenElement) {
-                fullscreenIcon.className = 'fa-solid fa-compress';
-            } else {
-                fullscreenIcon.className = 'fa-solid fa-expand';
-            }
+        var fsIcon = btnFullscreen.querySelector('i');
+        function updateFsIcon() {
+            fsIcon.className = document.fullscreenElement ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
         }
-
-        document.addEventListener('fullscreenchange', updateFullscreenIcon);
-
+        document.addEventListener('fullscreenchange', updateFsIcon);
         btnFullscreen.addEventListener('click', function (e) {
             e.stopPropagation();
             haptic(10);
@@ -284,21 +320,21 @@ function play(raw) {
                 document.exitFullscreen();
             } else {
                 var player = document.getElementById('player');
-                if (player.requestFullscreen) {
-                    player.requestFullscreen();
-                } else if (player.webkitRequestFullscreen) {
-                    player.webkitRequestFullscreen();
-                } else if (player.mozRequestFullScreen) {
-                    player.mozRequestFullScreen();
-                } else if (player.msRequestFullscreen) {
-                    player.msRequestFullscreen();
-                }
+                (player.requestFullscreen || player.webkitRequestFullscreen || player.mozRequestFullScreen || player.msRequestFullscreen || function () { }).call(player);
             }
         });
     }
 
     wrap.addEventListener('mouseenter', function () { trackEl.classList.add('hover'); });
-    wrap.addEventListener('mouseleave', function () { if (!dragging) trackEl.classList.remove('hover'); });
+    wrap.addEventListener('mouseleave', function () {
+        if (!dragging) trackEl.classList.remove('hover');
+        tooltip.classList.remove('show');
+    });
+
+    wrap.addEventListener('mousemove', function (e) {
+        e.stopPropagation();
+        hoverTooltip(e.clientX);
+    });
 
     wrap.addEventListener('mousedown', function (e) {
         e.stopPropagation();
@@ -327,7 +363,6 @@ function play(raw) {
         trackEl.classList.remove('drag', 'hover');
         if (!v.paused) showUI();
     }
-
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchend', endDrag);
 
@@ -339,6 +374,10 @@ function play(raw) {
 
     document.getElementById('player').addEventListener('mousemove', function () {
         if (!v.paused) showUI();
+    });
+
+    document.addEventListener('click', function () {
+        if (speedOpen) { speedMenu.classList.remove('open'); speedOpen = false; }
     });
 
     function handleTap(side) {
@@ -362,7 +401,7 @@ function play(raw) {
             }
             tapCount = 0;
             tapSide = null;
-        }, 260);
+        }, 270);
     }
 
     tapL.addEventListener('click', function (e) { e.stopPropagation(); handleTap('left'); });

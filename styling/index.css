@@ -6,16 +6,16 @@
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
-    -webkit-user-select: none;
+    -webkit-user-select: none
 }
 
 body {
     margin: 0;
-    background: #000000;
+    background: #000;
     overflow: hidden;
     position: fixed;
     inset: 0;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Manrope', sans-serif
 }
 
 #loader {
@@ -23,23 +23,23 @@ body {
     inset: 0;
     z-index: 9999;
     overflow: hidden;
-    pointer-events: all;
+    pointer-events: all
 }
 
 #loader.out {
-    animation: loaderOut 0.8s cubic-bezier(0.76, 0, 0.24, 1) forwards;
-    pointer-events: none;
+    animation: loaderOut 1s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+    pointer-events: none
 }
 
 @keyframes loaderOut {
     0% {
         opacity: 1;
-        transform: scale(1);
+        transform: scale(1)
     }
 
     100% {
         opacity: 0;
-        transform: scale(1.05);
+        transform: scale(1.06)
     }
 }
 
@@ -49,7 +49,7 @@ body {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 0;
+    z-index: 0
 }
 
 .loader-aurora {
@@ -57,32 +57,79 @@ body {
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    overflow: hidden;
+    overflow: hidden
 }
 
 .loader-aurora svg {
     position: absolute;
     inset: 0;
     width: 100%;
-    height: 100%;
+    height: 100%
+}
+
+.loader-bottom-glow {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    height: 40%;
+    background: radial-gradient(ellipse 120% 100% at 50% 105%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 25%, rgba(255, 255, 255, 0.06) 55%, transparent 100%);
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    animation: glowFadeUp 3.8s cubic-bezier(0.22, 1, 0.36, 1) forwards
+}
+
+@keyframes glowFadeUp {
+    0% {
+        opacity: 0;
+        transform: translateY(40px) scaleY(0.92)
+    }
+
+    60% {
+        opacity: 0.85
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scaleY(1)
+    }
+}
+
+@media(max-width:1200px) {
+    .loader-bottom-glow {
+        height: 50vh
+    }
+}
+
+@media(max-width:800px) {
+    .loader-bottom-glow {
+        height: 38vh
+    }
+}
+
+@media(max-width:500px) {
+    .loader-bottom-glow {
+        height: 28vh
+    }
 }
 
 @keyframes lFadeUp {
     from {
         opacity: 0;
-        transform: translateY(12px);
+        transform: translateY(12px)
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0)
     }
 }
 
 #player {
     position: relative;
     width: 100%;
-    height: 100vh;
+    height: 100vh
 }
 
 video {
@@ -91,11 +138,11 @@ video {
     object-fit: cover;
     display: block;
     opacity: 0;
-    transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1)
 }
 
 video.ready {
-    opacity: 1;
+    opacity: 1
 }
 
 #error-screen {
@@ -108,25 +155,25 @@ video.ready {
     justify-content: center;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1)
 }
 
 #error-screen.show {
     opacity: 1;
-    pointer-events: auto;
+    pointer-events: auto
 }
 
 #error-screen i {
     font-size: 52px;
-    color: rgba(255, 255, 255, 0.25);
-    margin-bottom: 20px;
+    color: rgba(255, 255, 255, 0.2);
+    margin-bottom: 16px
 }
 
 .err-text {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
-    color: rgba(128, 128, 128, 0.85);
-    letter-spacing: 0.03em;
+    color: rgba(140, 140, 140, 0.85);
+    letter-spacing: 0.04em
 }
 
 .tap-zone {
@@ -135,55 +182,68 @@ video.ready {
     bottom: 0;
     width: 50%;
     z-index: 5;
-    cursor: pointer;
+    cursor: pointer
 }
 
 #tap-left {
-    left: 0;
+    left: 0
 }
 
 #tap-right {
-    right: 0;
+    right: 0
 }
 
 .skip-pill {
     position: absolute;
     top: 50%;
-    transform: translateY(-50%) translateY(-24px);
+    transform: translateY(-50%) translateY(-28px);
     pointer-events: none;
     z-index: 20;
     opacity: 0;
-    transition: opacity 0.25s ease, transform 0.4s cubic-bezier(0.25, 1.4, 0.5, 1);
+    transition: opacity 0.2s ease, transform 0.4s cubic-bezier(0.25, 1.4, 0.5, 1)
 }
 
 #skip-left {
-    left: 8%;
+    left: 9%
 }
 
 #skip-right {
-    right: 8%;
+    right: 9%
+}
+
+.skip-pill .skip-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px
+}
+
+.skip-pill i {
+    font-size: 28px;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7)
 }
 
 .skip-pill span {
     display: block;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
-    color: #fff;
-    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.04em;
     white-space: nowrap;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8)
 }
 
 .skip-pill.show {
     opacity: 1;
     transform: translateY(-50%);
-    transition: opacity 0.2s ease, transform 0.45s cubic-bezier(0.25, 1.4, 0.5, 1);
+    transition: opacity 0.18s ease, transform 0.42s cubic-bezier(0.25, 1.4, 0.5, 1)
 }
 
 .skip-pill.hide {
     opacity: 0;
-    transform: translateY(calc(-50% + 10px));
-    transition: opacity 0.4s ease, transform 0.4s ease;
+    transform: translateY(calc(-50% + 12px));
+    transition: opacity 0.38s ease, transform 0.38s ease
 }
 
 #center-flash {
@@ -193,96 +253,132 @@ video.ready {
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    z-index: 15;
+    z-index: 15
 }
 
 #center-flash i {
-    font-size: 64px;
+    font-size: 60px;
     color: #fff;
     opacity: 0;
-    transform: scale(0.4);
+    transform: scale(0.4)
 }
 
 #center-flash i.pop {
-    animation: cPop 0.7s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    animation: cPop 0.75s cubic-bezier(0.25, 1, 0.5, 1) forwards
 }
 
 @keyframes cPop {
     0% {
         opacity: 0;
-        transform: scale(0.4);
+        transform: scale(0.35)
     }
 
-    15% {
-        opacity: 1;
-        transform: scale(1.05);
+    12% {
+        opacity: 0.9;
+        transform: scale(1.08)
     }
 
-    50% {
-        transform: scale(0.95);
+    45% {
+        transform: scale(0.96)
     }
 
-    75% {
-        opacity: 1;
+    70% {
+        opacity: 0.85
     }
 
     100% {
         opacity: 0;
-        transform: scale(1.1);
+        transform: scale(1.12)
     }
 }
 
-#progress-container {
+#vignette {
     position: absolute;
-    bottom: 80px;
-    left: 0;
-    right: 0;
-    padding: 0 24px;
-    z-index: 20;
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-    transform-origin: center bottom;
-    transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    inset: 0;
     pointer-events: none;
+    z-index: 4;
+    background: radial-gradient(ellipse 80% 65% at 50% 50%, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
+    opacity: 0;
+    transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1)
 }
 
-#progress-container.on {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
+#vignette.on {
+    opacity: 1
 }
 
-#controls {
+#player-controls-wrapper {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 0 24px 20px 24px;
     z-index: 20;
     opacity: 0;
-    transform: translateY(16px) scale(0.98);
+    transform: translateY(18px);
     transform-origin: center bottom;
-    transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
     pointer-events: none;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
-    padding-bottom: 40px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
+    border-radius: 20px 20px 0 0;
+    padding-bottom: 10px
+}
+
+#player-controls-wrapper.on {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto
+}
+
+#progress-container {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    z-index: auto;
+    opacity: 1;
+    transform: none;
+    transform-origin: unset;
+    transition: none;
+    pointer-events: auto;
+    margin-bottom: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#progress-container.on {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto
+}
+
+#controls {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    z-index: auto;
+    opacity: 1;
+    transform: none;
+    transform-origin: unset;
+    transition: none;
+    pointer-events: auto;
+    background: none;
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
 #controls.on {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
+    transform: none;
+    pointer-events: auto
 }
 
 #control-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px
 }
 
-#btn-play,
-#btn-pip,
-#btn-fullscreen {
+.ctrl-btn {
     flex-shrink: 0;
     background: none;
     border: none;
@@ -295,117 +391,76 @@ video.ready {
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.85;
-    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    opacity: 0.82;
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    border-radius: 50%
 }
 
-#btn-play i,
-#btn-pip i,
-#btn-fullscreen i {
-    font-size: 20px;
+.ctrl-btn i {
+    font-size: 18px;
     color: #fff;
-    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)
 }
 
-#btn-play:hover,
-#btn-pip:hover,
-#btn-fullscreen:hover {
+.ctrl-btn:hover {
     opacity: 1;
-    transform: scale(1.1);
+    transform: scale(1.12)
 }
 
-#btn-play:active i,
-#btn-pip:active i,
-#btn-fullscreen:active i {
-    transform: scale(0.85);
-    transition: transform 0.1s ease;
+.ctrl-btn:active i {
+    transform: scale(0.82);
+    transition: transform 0.08s ease
 }
 
-#progress-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+#tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    background: rgba(20, 20, 20, 0.92);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    letter-spacing: 0.03em
+}
+
+#tooltip.show {
+    opacity: 1
 }
 
 #track-wrap {
     width: 100%;
-    padding: 10px 0;
+    padding: 12px 0;
     cursor: pointer;
+    position: relative
 }
 
 #track {
     position: relative;
-    height: 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.15);
-    transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    height: 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.18);
+    transition: height 0.28s cubic-bezier(0.25, 1, 0.5, 1)
 }
 
 #track-wrap:hover #track,
 #track.drag {
-    height: 8px;
-}
-
-make the fade circual like yk inward U shape html,
-body {
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-    height: 100%;
-}
-
-.loader-bottom-glow {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100vw;
-    height: 25%;
-    background: radial-gradient(ellipse 150% 100% at 50% 100%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 20%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
-    z-index: 2;
-    pointer-events: none;
-    opacity: 0;
-    animation: glowFadeUp 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-@media (max-width: 1200px) {
-    .loader-bottom-glow {
-        height: 45vh;
-    }
-}
-
-@media (max-width: 800px) {
-    .loader-bottom-glow {
-        height: 30vh;
-    }
-}
-
-@media (max-width: 500px) {
-    .loader-bottom-glow {
-        height: 25vh;
-    }
-}
-
-@keyframes glowFadeUp {
-    0% {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    height: 6px
 }
 
 #buf {
     position: absolute;
     inset: 0 auto 0 0;
     width: 0%;
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 3px;
     pointer-events: none;
-    transition: width 0.4s ease-out;
+    transition: width 0.5s ease-out
 }
 
 #prog {
@@ -413,51 +468,222 @@ body {
     inset: 0 auto 0 0;
     width: 0%;
     background: #fff;
-    border-radius: 4px;
+    border-radius: 3px;
     pointer-events: none;
-    transition: width 0.1s linear;
+    transition: width 0.1s linear
 }
 
 #thumb {
     position: absolute;
     top: 50%;
     left: 0%;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     background: #fff;
     border-radius: 50%;
     transform: translate(-50%, -50%) scale(0);
     pointer-events: none;
-    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    will-change: transform;
+    transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.28s ease;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.55);
+    will-change: transform
 }
 
 #track-wrap:hover #thumb,
 #track.drag #thumb {
-    transform: translate(-50%, -50%) scale(1);
-    background: #fff;
-}
-
-#thumb:hover {
-    background: #fff;
+    transform: translate(-50%, -50%) scale(1)
 }
 
 #time-row {
     display: flex;
     justify-content: space-between;
     padding: 0 2px;
+    margin-top: 4px
 }
 
 #t-cur,
 #t-dur {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.65);
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.04em
 }
 
-@media (max-width: 500px) {
-    #controls {
-        padding: 0 16px 16px 16px;
+#title-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 20px 60px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(-14px);
+    transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none
+}
+
+#title-bar.on {
+    opacity: 1;
+    transform: translateY(0)
+}
+
+#title-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 0.02em;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7)
+}
+
+#now-playing-toast {
+    position: fixed;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-18px) scale(0.8);
+    z-index: 99999;
+    opacity: 0;
+    pointer-events: none;
+    transition: none;
+}
+
+#now-playing-toast.enter {
+    animation: npEnter 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards
+}
+
+#now-playing-toast.exit {
+    animation: npExit 0.55s cubic-bezier(0.4, 0, 1, 1) forwards
+}
+
+@keyframes npEnter {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-18px) scale(0.8)
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0px) scale(1)
+    }
+}
+
+@keyframes npExit {
+    0% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0px) scale(1)
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px) scale(0.92)
+    }
+}
+
+.np-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px
+}
+
+.np-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45)
+}
+
+.np-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    letter-spacing: 0.01em;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
+    white-space: nowrap
+}
+
+.np-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 160%;
+    height: 400%;
+    background: radial-gradient(ellipse 80% 40% at 50% 15%, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 35%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
+    animation: npGlowPulse 4s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+
+@keyframes npGlowPulse {
+    0% {
+        opacity: 0.6;
+        transform: translate(-50%, -50%) scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+}
+
+#speed-menu {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+    background: rgba(10, 10, 10, 0.5);
+    -webkit-backdrop-filter: blur(10px) saturate(5);
+    backdrop-filter: blur(10px) saturate(5);
+    border-radius: 10px;
+    padding: 6px 0;
+    z-index: 30;
+    min-width: 90px;
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+    transform-origin: bottom right;
+    transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none
+}
+
+#speed-menu.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto
+}
+
+.speed-opt {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    cursor: pointer;
+    text-align: left;
+    letter-spacing: 0.02em;
+    transition: background 0.15s, color 0.15s;
+    font-family: 'Manrope', sans-serif
+}
+
+.speed-opt:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff
+}
+
+.speed-opt.active {
+    color: #fff;
+    font-weight: 600
+}
+
+#speed-btn-wrap {
+    position: relative
+}
+
+@media(max-width:500px) {
+    #title-text {
+        font-size: 13px
     }
 }

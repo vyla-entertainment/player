@@ -10,7 +10,6 @@
 
     <div id="loader">
         <canvas id="loader-canvas"></canvas>
-
         <div class="loader-aurora">
             <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -26,41 +25,69 @@
                 </defs>
             </svg>
         </div>
-
         <div class="loader-bottom-glow"></div>
     </div>
 
     <div id="player">
         <video id="v" playsinline></video>
 
+        <div id="vignette"></div>
+
+        <div id="title-bar"><span id="title-text"></span></div>
+
         <div id="tap-left" class="tap-zone"></div>
         <div id="tap-right" class="tap-zone"></div>
 
-        <div id="skip-left" class="skip-pill"><span id="skip-left-lbl">+10 seconds</span></div>
-        <div id="skip-right" class="skip-pill"><span id="skip-right-lbl">+10 seconds</span></div>
-
-        <div id="center-flash"><i class="fa-solid fa-play" id="ci"></i></div>
-
-        <div id="progress-container">
-            <div id="track-wrap">
-                <div id="track">
-                    <div id="buf"></div>
-                    <div id="prog"></div>
-                    <div id="thumb"></div>
-                </div>
+        <div id="skip-left" class="skip-pill">
+            <div class="skip-inner">
+                <i class="fa-solid fa-backward"></i>
+                <span id="skip-left-lbl">-10 seconds</span>
             </div>
-            <div id="time-row">
-                <span id="t-cur">0:00</span>
-                <span id="t-dur">0:00</span>
+        </div>
+        <div id="skip-right" class="skip-pill">
+            <div class="skip-inner">
+                <i class="fa-solid fa-forward"></i>
+                <span id="skip-right-lbl">+10 seconds</span>
             </div>
         </div>
 
-        <div id="controls">
-            <div id="control-row">
-                <button id="btn-play"><i class="fa-solid fa-play" id="play-ico"></i></button>
-                <div style="flex: 1;"></div>
-                <button id="btn-pip"><i class="fa-solid fa-window-restore"></i></button>
-                <button id="btn-fullscreen"><i class="fa-solid fa-expand"></i></button>
+        <div id="center-flash"><i class="fa-solid fa-play" id="ci"></i></div>
+
+        <div id="player-controls-wrapper">
+            <div id="progress-container">
+                <div id="track-wrap">
+                    <div id="tooltip">0:00</div>
+                    <div id="track">
+                        <div id="buf"></div>
+                        <div id="prog"></div>
+                        <div id="thumb"></div>
+                    </div>
+                </div>
+                <div id="time-row">
+                    <span id="t-cur">0:00</span>
+                    <span id="t-dur">0:00</span>
+                </div>
+            </div>
+
+            <div id="controls">
+                <div id="control-row">
+                    <button id="btn-play" class="ctrl-btn"><i class="fa-solid fa-play" id="play-ico"></i></button>
+                    <div style="flex:1;"></div>
+                    <div id="speed-btn-wrap">
+                        <button id="btn-speed" class="ctrl-btn" title="Playback speed"><i
+                                class="fa-solid fa-gauge-high"></i></button>
+                        <div id="speed-menu">
+                            <button class="speed-opt" data-speed="0.5">0.5×</button>
+                            <button class="speed-opt" data-speed="0.75">0.75×</button>
+                            <button class="speed-opt active" data-speed="1">1×</button>
+                            <button class="speed-opt" data-speed="1.25">1.25×</button>
+                            <button class="speed-opt" data-speed="1.5">1.5×</button>
+                            <button class="speed-opt" data-speed="2">2×</button>
+                        </div>
+                    </div>
+                    <button id="btn-pip" class="ctrl-btn"><i class="fa-solid fa-window-restore"></i></button>
+                    <button id="btn-fullscreen" class="ctrl-btn"><i class="fa-solid fa-expand"></i></button>
+                </div>
             </div>
         </div>
 
@@ -68,6 +95,8 @@
             <div class="err-text">Source Not Found</div>
         </div>
     </div>
+
+    <div id="now-playing-toast"></div>
 
     <script src="javascript/index.js"></script>
 </body>
