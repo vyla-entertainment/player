@@ -73,16 +73,150 @@
                 <div id="control-row">
                     <button id="btn-play" class="ctrl-btn"><i class="fa-solid fa-play" id="play-ico"></i></button>
                     <div style="flex:1;"></div>
-                    <div id="speed-btn-wrap">
-                        <button id="btn-speed" class="ctrl-btn" title="Playback speed"><i
-                                class="fa-solid fa-gauge-high"></i></button>
-                        <div id="speed-menu">
-                            <button class="speed-opt" data-speed="0.5">0.5×</button>
-                            <button class="speed-opt" data-speed="0.75">0.75×</button>
-                            <button class="speed-opt active" data-speed="1">1×</button>
-                            <button class="speed-opt" data-speed="1.25">1.25×</button>
-                            <button class="speed-opt" data-speed="1.5">1.5×</button>
-                            <button class="speed-opt" data-speed="2">2×</button>
+                    <div id="settings-btn-wrap">
+                        <button id="btn-settings" class="ctrl-btn" title="Settings"><i
+                                class="fa-solid fa-cog"></i></button>
+                        <div id="settings-panel">
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
+                                    <div class="smh-left"><i class="fa-solid fa-clock"></i> Playback</div>
+                                    <div class="smh-right"><span class="smh-label" id="lbl-speed">Normal</span> <i
+                                            class="fa-solid fa-chevron-right chevron"></i></div>
+                                </div>
+                                <div class="settings-menu-content">
+                                    <div class="settings-content-inner">
+                                        <div class="settings-list" id="speed-opts">
+                                            <div class="settings-list-item" data-speed="0.25"><i
+                                                    class="fa-regular fa-circle"></i> 0.25x</div>
+                                            <div class="settings-list-item" data-speed="0.5"><i
+                                                    class="fa-regular fa-circle"></i> 0.5x</div>
+                                            <div class="settings-list-item" data-speed="0.75"><i
+                                                    class="fa-regular fa-circle"></i> 0.75x</div>
+                                            <div class="settings-list-item active" data-speed="1"><i
+                                                    class="fa-regular fa-circle-dot"></i>
+                                                Normal</div>
+                                            <div class="settings-list-item" data-speed="1.25"><i
+                                                    class="fa-regular fa-circle"></i> 1.25x</div>
+                                            <div class="settings-list-item" data-speed="1.5"><i
+                                                    class="fa-regular fa-circle"></i> 1.5x</div>
+                                            <div class="settings-list-item" data-speed="1.75"><i
+                                                    class="fa-regular fa-circle"></i> 1.75x</div>
+                                            <div class="settings-list-item" data-speed="2"><i
+                                                    class="fa-regular fa-circle"></i> 2x</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
+                                    <div class="smh-left"><i class="fa-solid fa-sliders"></i> Quality</div>
+                                    <div class="smh-right"><span class="smh-label" id="lbl-quality">Auto</span> <i
+                                            class="fa-solid fa-chevron-right chevron"></i></div>
+                                </div>
+                                <div class="settings-menu-content">
+                                    <div class="settings-content-inner">
+                                        <div class="settings-list" id="quality-opts"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
+                                    <div class="smh-left"><i class="fa-solid fa-closed-captioning"></i> Subtitles</div>
+                                    <div class="smh-right"><span class="smh-label" id="lbl-subtitle">Off</span> <i
+                                            class="fa-solid fa-chevron-right chevron"></i></div>
+                                </div>
+                                <div class="settings-menu-content">
+                                    <div class="settings-content-inner">
+                                        <div class="settings-list" id="subtitle-opts">
+                                            <div class="settings-list-item active" data-track="-1"><i
+                                                    class="fa-regular fa-circle-dot"></i> Off
+                                            </div>
+                                        </div>
+
+                                        <div id="sub-customize" style="display:none;">
+                                            <div class="sub-customize-title">Caption Style</div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Font</span>
+                                                <div class="select-wrapper">
+                                                    <select id="sub-font-select" class="settings-select">
+                                                        <option value="sans">Sans-Serif</option>
+                                                        <option value="serif">Serif</option>
+                                                        <option value="mono">Monospace</option>
+                                                    </select>
+                                                    <i class="fa-solid fa-chevron-down"></i>
+                                                </div>
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Size</span>
+                                                <div class="select-wrapper">
+                                                    <select id="sub-size-select" class="settings-select">
+                                                        <option value="small">Small</option>
+                                                        <option value="medium">Medium</option>
+                                                        <option value="large">Large</option>
+                                                        <option value="xlarge">Extra Large</option>
+                                                        <option value="xxlarge">Huge</option>
+                                                    </select>
+                                                    <i class="fa-solid fa-chevron-down"></i>
+                                                </div>
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Text Color</span>
+                                                <div class="color-picker-wrapper">
+                                                    <input type="color" id="sub-color-input" class="settings-color"
+                                                        value="#ffffff">
+                                                </div>
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Background Color</span>
+                                                <div class="color-picker-wrapper">
+                                                    <input type="color" id="sub-bg-color-input" class="settings-color"
+                                                        value="#000000">
+                                                </div>
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Background Opacity</span>
+                                                <div class="select-wrapper">
+                                                    <select id="sub-bg-opacity-select" class="settings-select">
+                                                        <option value="0">0%</option>
+                                                        <option value="0.25">25%</option>
+                                                        <option value="0.5">50%</option>
+                                                        <option value="0.75" selected>75%</option>
+                                                        <option value="1">100%</option>
+                                                    </select>
+                                                    <i class="fa-solid fa-chevron-down"></i>
+                                                </div>
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Position</span>
+                                                <div class="select-wrapper">
+                                                    <select id="sub-pos-select" class="settings-select">
+                                                        <option value="top">Top</option>
+                                                        <option value="high">High</option>
+                                                        <option value="mid">Mid</option>
+                                                        <option value="low">Low</option>
+                                                        <option value="bottom">Bottom</option>
+                                                    </select>
+                                                    <i class="fa-solid fa-chevron-down"></i>
+                                                </div>
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Edge Effect</span>
+                                                <div class="select-wrapper">
+                                                    <select id="sub-edge-select" class="settings-select">
+                                                        <option value="shadow">Shadow</option>
+                                                        <option value="outline">Outline</option>
+                                                        <option value="uniform">Uniform</option>
+                                                        <option value="none">None</option>
+                                                    </select>
+                                                    <i class="fa-solid fa-chevron-down"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <button id="btn-pip" class="ctrl-btn"><i class="fa-solid fa-window-restore"></i></button>
@@ -94,6 +228,8 @@
         <div id="error-screen">
             <div class="err-text">Source Not Found</div>
         </div>
+
+        <div id="subtitle-display"><span id="subtitle-text"></span></div>
     </div>
 
     <div id="now-playing-toast"></div>

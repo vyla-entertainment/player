@@ -116,15 +116,34 @@ async function proxy(url, res) {
 async function getMetadata(id, s, e) {
     try {
         const k = process.env.TMDB_API_KEY;
-        if (!k) return null;
+        console.log('TMDB API Key check:', k ? 'Key exists' : 'No key found');
+        console.log('TMDB API Key length:', k ? k.length : 0);
+        
+        if (!k) {
+            console.log('TMDB API: Missing API key - returning null');
+            return null;
+        }
 
         const url = s
             ? `https://api.themoviedb.org/3/tv/${id}/season/${s}/episode/${e || 1}?api_key=${k}`
             : `https://api.themoviedb.org/3/movie/${id}?api_key=${k}`;
 
+        console.log('TMDB API URL:', url.replace(k, 'API_KEY_HIDDEN'));
+        
         const res = await fetch(url);
-        return await res.json();
-    } catch {
+        console.log('TMDB API Response status:', res.status);
+        
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.log('TMDB API Error response:', errorText);
+            return null;
+        }
+        
+        const data = await res.json();
+        console.log('TMDB API Success - got data for:', data.title || data.name || 'Unknown');
+        return data;
+    } catch (error) {
+        console.log('TMDB API Exception:', error.message);
         return null;
     }
 }

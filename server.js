@@ -2,6 +2,8 @@ if (!globalThis.crypto) {
     globalThis.crypto = require('node:crypto').webcrypto;
 }
 
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const apiHandler = require('./api/index.js');
