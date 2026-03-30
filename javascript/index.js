@@ -721,13 +721,10 @@ function play(raw) {
         });
     });
 
-    console.log('Setting up document click listener');
     document.addEventListener('click', function (e) {
         if (!e.isTrusted) return;
-        console.log('Document click - settingsOpen:', settingsOpen, 'target:', e.target, 'contains:', settingsPanel.contains(e.target));
         if (e.target.id === '__hx') return;
         if (settingsOpen && !settingsPanel.contains(e.target)) {
-            console.log('Closing settings panel - clicked outside');
             settingsPanel.classList.remove('open');
             settingsOpen = false;
             menuGroups.forEach(function (g) { g.classList.remove('expanded'); });

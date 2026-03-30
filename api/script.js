@@ -22,7 +22,6 @@
                 outputBuf += decoder.decode(buf);
                 const nl = outputBuf.lastIndexOf("\n");
                 if (nl != -1) {
-                    console.log(outputBuf.substring(0, nl));
                     outputBuf = outputBuf.substring(nl + 1);
                 }
                 return buf.length;
@@ -169,11 +168,6 @@
         constructor() {
             this.argv = ["js"];
             this.env = {};
-            this.exit = (code) => {
-                if (code !== 0) {
-                    console.warn("exit code:", code);
-                }
-            };
             this._exitPromise = new Promise((resolve) => {
                 this._resolveExitPromise = resolve;
             });
@@ -338,7 +332,6 @@
                             setTimeout(() => {
                                 this._resume();
                                 while (this._scheduledTimeouts.has(id)) {
-                                    console.warn("scheduleTimeoutEvent: missed timeout event");
                                     this._resume();
                                 }
                             }, getInt64(sp + 8))
@@ -518,10 +511,6 @@
                         dst.set(toCopy);
                         setInt64(sp + 40, toCopy.length);
                         this.mem.setUint8(sp + 48, 1);
-                    },
-
-                    debug: (value) => {
-                        console.log(value);
                     },
                 },
             };
