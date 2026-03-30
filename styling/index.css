@@ -24,7 +24,6 @@
     --grey-text: rgba(140, 140, 140, 0.85);
     --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
     --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
-    --vignette-bg: radial-gradient(ellipse 80% 65% at 50% 50%, transparent 40%, var(--black-55) 100%);
     --menu-bg: var(--black-10);
     --menu-blur: blur(10px) saturate(5);
     --menu-radius: 10px;
@@ -63,7 +62,7 @@
 
 body {
     margin: 0;
-    background: var(--bg);
+    background: #000;
     overflow: hidden;
     position: fixed;
     inset: 0;
@@ -95,13 +94,14 @@ body {
     }
 }
 
-#loader-canvas {
+#loader-bg-video {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    z-index: 0
+    object-fit: cover;
+    z-index: 0;
 }
 
 .loader-aurora {
@@ -117,53 +117,6 @@ body {
     inset: 0;
     width: 100%;
     height: 100%
-}
-
-.loader-bottom-glow {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100vw;
-    height: 40%;
-    background: radial-gradient(ellipse 120% 100% at 50% 105%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 25%, var(--white-06) 55%, transparent 100%);
-    z-index: 2;
-    pointer-events: none;
-    opacity: 0;
-    animation: glowFadeUp 3.8s var(--ease-out) forwards
-}
-
-@keyframes glowFadeUp {
-    0% {
-        opacity: 0;
-        transform: translateY(40px) scaleY(0.92)
-    }
-
-    60% {
-        opacity: 0.85
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateY(0) scaleY(1)
-    }
-}
-
-@media (max-width: 1200px) {
-    .loader-bottom-glow {
-        height: 50vh
-    }
-}
-
-@media (max-width: 800px) {
-    .loader-bottom-glow {
-        height: 38vh
-    }
-}
-
-@media (max-width: 500px) {
-    .loader-bottom-glow {
-        height: 28vh
-    }
 }
 
 @keyframes lFadeUp {
@@ -189,7 +142,7 @@ video {
     height: 100%;
     object-fit: cover;
     display: block;
-    opacity: 0;
+    opacity: 1;
     transition: opacity 1s var(--ease-out)
 }
 
@@ -213,7 +166,8 @@ video.ready {
     justify-content: center;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.6s var(--ease-smooth)
+    transition: opacity 0.6s var(--ease-smooth);
+    z-index: 10000;
 }
 
 #error-screen.show {
@@ -348,20 +302,6 @@ video.ready {
         opacity: 0;
         transform: scale(1.12)
     }
-}
-
-#vignette {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 4;
-    background: var(--vignette-bg);
-    opacity: 0;
-    transition: opacity 0.6s var(--ease-smooth)
-}
-
-#vignette.on {
-    opacity: 1
 }
 
 #player-controls-wrapper {
@@ -576,8 +516,8 @@ video.ready {
     padding: 20px 20px 60px;
     background: var(--title-bg);
     z-index: 20;
-    opacity: 0;
-    transform: translateY(-14px);
+    opacity: 1;
+    transform: translateY(0);
     transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out);
     pointer-events: none
 }

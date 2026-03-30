@@ -1,59 +1,39 @@
-(function () {
-    var canvas = document.getElementById('loader-canvas');
-    var ctx = canvas.getContext('2d');
-    var W, H, dots = [], mx = -9999, my = -9999;
-    var SP = 26, R = 1.4, INF = 160;
+var alive = true;
+var shouldHideLoader = false;
 
-    function resize() {
-        W = canvas.width = window.innerWidth;
-        H = canvas.height = window.innerHeight;
-        dots = [];
-        for (var row = 0; row <= Math.ceil(H / SP); row++)
-            for (var col = 0; col <= Math.ceil(W / SP); col++)
-                dots.push({ x: col * SP, y: row * SP, s: 1 });
+function initLoaderVideo() {
+    var loaderVideo = document.getElementById('loader-bg-video');
+    if (loaderVideo) {
+        loaderVideo.src = 'videos/background.mp4';
+        loaderVideo.play().catch(function (e) {
+            console.log('Background video autoplay failed:', e);
+        });
     }
-    window.addEventListener('resize', resize);
-    resize();
+}
 
-    document.addEventListener('mousemove', function (e) { mx = e.clientX; my = e.clientY; });
-    document.addEventListener('touchmove', function (e) {
-        if (e.touches[0]) { mx = e.touches[0].clientX; my = e.touches[0].clientY; }
-    }, { passive: true });
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
 
-    function lerp(a, b, t) { return a + (b - a) * t; }
+document.addEventListener('DOMContentLoaded', function () {
+    initLoaderVideo();
 
-    var alive = true, last = 0;
-
-    function frame(ts) {
-        if (!alive) return;
-        var dt = Math.min((ts - last) / 16, 4);
-        last = ts;
-        ctx.clearRect(0, 0, W, H);
-        for (var i = 0; i < dots.length; i++) {
-            var d = dots[i];
-            var dx = d.x - mx, dy = d.y - my;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-            var target = dist < INF ? (1 + (1 - dist / INF) * 4) : 1;
-            d.s = lerp(d.s, target, 0.1 * dt);
-            var a = 0.08 + (d.s - 1) * 0.11;
-            ctx.beginPath();
-            ctx.arc(d.x, d.y, R * Math.min(d.s, 2.5), 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,' + Math.min(a, 0.55) + ')';
-            ctx.fill();
+    if (isMobile()) {
+        var mainVideo = document.getElementById('v');
+        if (mainVideo) {
+            mainVideo.removeAttribute('controls');
         }
-        requestAnimationFrame(frame);
     }
-    requestAnimationFrame(frame);
+});
 
+function hideLoader() {
+    var loader = document.getElementById('loader');
+    loader.classList.add('out');
     setTimeout(function () {
-        var loader = document.getElementById('loader');
-        loader.classList.add('out');
-        setTimeout(function () {
-            alive = false;
-            loader.style.display = 'none';
-        }, 1000);
-    }, 3400);
-})();
+        alive = false;
+        loader.style.display = 'none';
+    }, 1000);
+}
 
 document.addEventListener('keydown', function (e) {
     if (e.key === 'F' || e.key === 'f') {
@@ -100,6 +80,8 @@ if (id) {
                 document.getElementById('error-screen').classList.add('show');
                 return;
             }
+            shouldHideLoader = true;
+            hideLoader();
             play(d.url);
             var title = 'Unknown';
             if (d.meta) {
@@ -232,7 +214,6 @@ function play(raw) {
     var v = document.getElementById('v');
     var controlsWrapper = document.getElementById('player-controls-wrapper');
     var titleBar = document.getElementById('title-bar');
-    var vignette = document.getElementById('vignette');
     var trackEl = document.getElementById('track');
     var wrap = document.getElementById('track-wrap');
     var prog = document.getElementById('prog');
@@ -398,7 +379,6 @@ function play(raw) {
     function showUI(pin) {
         controlsWrapper.classList.add('on');
         titleBar.classList.add('on');
-        vignette.classList.add('on');
         shown = true;
         clearTimeout(hideTimer);
         if (!pin && !v.paused && !settingsOpen) {
@@ -410,7 +390,6 @@ function play(raw) {
         if (settingsOpen) return;
         controlsWrapper.classList.remove('on');
         titleBar.classList.remove('on');
-        vignette.classList.remove('on');
         shown = false;
         settingsPanel.classList.remove('open');
         settingsOpen = false;
@@ -503,6 +482,12 @@ function play(raw) {
         v.currentTime = 0.1;
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
+
+        var loaderBottomGlow = document.querySelector('.loader-bottom-glow');
+        if (loaderBottomGlow) {
+            loaderBottomGlow.classList.add('video-playing');
+        }
+
         setTimeout(function () { showUI(true); }, 180);
         startCueLoop();
     }
@@ -543,7 +528,13 @@ function play(raw) {
         });
     } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = src;
-        v.addEventListener('loadedmetadata', onReady);
+        v.addEventListener('loadedmetadata', function () {
+            var loaderBottomGlow = document.querySelector('.loader-bottom-glow');
+            if (loaderBottomGlow) {
+                loaderBottomGlow.classList.add('video-playing');
+            }
+            onReady();
+        });
     }
 
     if (savedSpeed !== 1) {

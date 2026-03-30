@@ -9,7 +9,7 @@
 <body>
 
     <div id="loader">
-        <canvas id="loader-canvas"></canvas>
+        <video id="loader-bg-video" autoplay muted loop playsinline></video>
         <div class="loader-aurora">
             <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
                 <defs>
@@ -25,13 +25,10 @@
                 </defs>
             </svg>
         </div>
-        <div class="loader-bottom-glow"></div>
     </div>
 
     <div id="player">
         <video id="v" playsinline></video>
-
-        <div id="vignette"></div>
 
         <div id="title-bar"><span id="title-text"></span></div>
 
