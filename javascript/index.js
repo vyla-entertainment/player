@@ -4,7 +4,7 @@ var shouldHideLoader = false;
 function initLoaderVideo() {
     var loaderVideo = document.getElementById('loader-bg-video');
     if (loaderVideo) {
-        loaderVideo.src = 'videos/background.mp4';
+        loaderVideo.src = 'https://hosting.anticroom.workers.dev/view/video/prjcfe0som98vhyb5tyk.mp4';
         loaderVideo.play().catch(function (e) {
             console.log('Background video autoplay failed:', e);
         });
