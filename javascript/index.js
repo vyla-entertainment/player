@@ -1,16 +1,13 @@
-(function () {
-    var canvas = document.getElementById('loader-canvas');
-    var ctx = canvas.getContext('2d');
-    var W, H, dots = [], mx = -9999, my = -9999;
-    var SP = 26, R = 1.4, INF = 160;
+var alive = true;
+var shouldHideLoader = false;
 
-    function resize() {
-        W = canvas.width = window.innerWidth;
-        H = canvas.height = window.innerHeight;
-        dots = [];
-        for (var row = 0; row <= Math.ceil(H / SP); row++)
-            for (var col = 0; col <= Math.ceil(W / SP); col++)
-                dots.push({ x: col * SP, y: row * SP, s: 1 });
+function initLoaderVideo() {
+    var loaderVideo = document.getElementById('loader-bg-video');
+    if (loaderVideo) {
+        loaderVideo.src = 'videos/background.mp4';
+        loaderVideo.play().catch(function (e) {
+            console.log('Background video autoplay failed:', e);
+        });
     }
 }
 
@@ -497,6 +494,58 @@ function play(raw) {
         startCueLoop();
         scheduleRetry();
     }
+
+    var retryCount = 0;
+    var maxRetries = 4;
+    var retryTimer = null;
+
+    function scheduleRetry() {
+        if (retryCount >= maxRetries) return;
+        retryTimer = setTimeout(function () {
+            if (!isNaN(v.duration) && v.duration > 0) return;
+            retryCount++;
+            showBuffering();
+            var endpoint = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+            fetch(endpoint)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (!d.url) { scheduleRetry(); return; }
+                    var newSrc = '/api?url=' + encodeURIComponent(d.url);
+                    if (Hls.isSupported()) {
+                        hls.stopLoad();
+                        hls.detachMedia();
+                        hls.loadSource(newSrc);
+                        hls.attachMedia(v);
+                    } else {
+                        v.src = newSrc;
+                        v.load();
+                    }
+                    scheduleRetry();
+                })
+                .catch(function () { scheduleRetry(); });
+        }, 4000);
+    }
+
+    var bufSpinner = document.getElementById('buffering-spinner');
+    var bufferingTimeout = null;
+
+    function showBuffering() {
+        clearTimeout(bufferingTimeout);
+        bufferingTimeout = setTimeout(function () {
+            if (v.paused || v.readyState >= 3) return;
+            bufSpinner.classList.add('active');
+        }, 500);
+    }
+
+    function hideBuffering() {
+        clearTimeout(bufferingTimeout);
+        bufSpinner.classList.remove('active');
+    }
+
+    v.addEventListener('waiting', showBuffering);
+    v.addEventListener('stalled', showBuffering);
+    v.addEventListener('playing', hideBuffering);
+    v.addEventListener('canplay', hideBuffering);
 
     if (Hls.isSupported()) {
         var hls = new Hls({ startLevel: -1, maxBufferLength: 20, maxMaxBufferLength: 40, maxBufferSize: 30 * 1000 * 1000, enableWorker: true });
