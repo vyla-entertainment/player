@@ -4,7 +4,7 @@ var shouldHideLoader = false;
 function initLoaderVideo() {
     var loaderVideo = document.getElementById('loader-bg-video');
     if (loaderVideo) {
-        loaderVideo.src = 'https://hosting.anticroom.workers.dev/view/video/prjcfe0som98vhyb5tyk.mp4';
+        loaderVideo.src = 'videos/background.mp4';
         loaderVideo.play().catch(function (e) {
             console.log('Background video autoplay failed:', e);
         });
@@ -531,14 +531,15 @@ function play(raw) {
 
     function showBuffering() {
         clearTimeout(bufferingTimeout);
-        bufSpinner.classList.add('active');
+        bufferingTimeout = setTimeout(function () {
+            if (v.paused || v.readyState >= 3) return;
+            bufSpinner.classList.add('active');
+        }, 500);
     }
 
     function hideBuffering() {
         clearTimeout(bufferingTimeout);
-        bufferingTimeout = setTimeout(function () {
-            bufSpinner.classList.remove('active');
-        }, 100);
+        bufSpinner.classList.remove('active');
     }
 
     v.addEventListener('waiting', showBuffering);
