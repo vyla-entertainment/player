@@ -379,6 +379,7 @@ function play(raw) {
     function showUI(pin) {
         controlsWrapper.classList.add('on');
         titleBar.classList.add('on');
+        document.getElementById('player').classList.add('ui-on');
         shown = true;
         clearTimeout(hideTimer);
         if (!pin && !v.paused && !settingsOpen) {
@@ -390,6 +391,7 @@ function play(raw) {
         if (settingsOpen) return;
         controlsWrapper.classList.remove('on');
         titleBar.classList.remove('on');
+        document.getElementById('player').classList.remove('ui-on');
         shown = false;
         settingsPanel.classList.remove('open');
         settingsOpen = false;
@@ -490,7 +492,59 @@ function play(raw) {
 
         setTimeout(function () { showUI(true); }, 180);
         startCueLoop();
+        scheduleRetry();
     }
+
+    var retryCount = 0;
+    var maxRetries = 4;
+    var retryTimer = null;
+
+    function scheduleRetry() {
+        if (retryCount >= maxRetries) return;
+        retryTimer = setTimeout(function () {
+            if (!isNaN(v.duration) && v.duration > 0) return;
+            retryCount++;
+            showBuffering();
+            var endpoint = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+            fetch(endpoint)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (!d.url) { scheduleRetry(); return; }
+                    var newSrc = '/api?url=' + encodeURIComponent(d.url);
+                    if (Hls.isSupported()) {
+                        hls.stopLoad();
+                        hls.detachMedia();
+                        hls.loadSource(newSrc);
+                        hls.attachMedia(v);
+                    } else {
+                        v.src = newSrc;
+                        v.load();
+                    }
+                    scheduleRetry();
+                })
+                .catch(function () { scheduleRetry(); });
+        }, 4000);
+    }
+
+    var bufSpinner = document.getElementById('buffering-spinner');
+    var bufferingTimeout = null;
+
+    function showBuffering() {
+        clearTimeout(bufferingTimeout);
+        bufSpinner.classList.add('active');
+    }
+
+    function hideBuffering() {
+        clearTimeout(bufferingTimeout);
+        bufferingTimeout = setTimeout(function () {
+            bufSpinner.classList.remove('active');
+        }, 100);
+    }
+
+    v.addEventListener('waiting', showBuffering);
+    v.addEventListener('stalled', showBuffering);
+    v.addEventListener('playing', hideBuffering);
+    v.addEventListener('canplay', hideBuffering);
 
     if (Hls.isSupported()) {
         var hls = new Hls({ startLevel: -1, maxBufferLength: 20, maxMaxBufferLength: 40, maxBufferSize: 30 * 1000 * 1000, enableWorker: true });
@@ -867,7 +921,14 @@ function play(raw) {
     });
 
     v.addEventListener('timeupdate', setProg);
-    v.addEventListener('durationchange', function () { if (v.duration) tDur.textContent = fmt(v.duration); });
+    v.addEventListener('durationchange', function () {
+        if (v.duration) {
+            tDur.textContent = fmt(v.duration);
+            clearTimeout(retryTimer);
+            retryCount = maxRetries;
+            hideBuffering();
+        }
+    });
     v.addEventListener('play', function () { syncIcon(); showUI(); });
     v.addEventListener('pause', function () { syncIcon(); showUI(true); clearTimeout(hideTimer); });
 
@@ -877,7 +938,25 @@ function play(raw) {
         v.paused ? v.play() : v.pause();
     });
 
-    function handleTap(side) {
+    document.getElementById('player').addEventListener('click', function (e) {
+        if (controlsWrapper.contains(e.target)) return;
+        if (settingsPanel && settingsPanel.contains(e.target)) return;
+
+        var rect = document.getElementById('player').getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        var dx = e.clientX - cx;
+        var dy = e.clientY - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= 150) {
+            haptic(10);
+            flashCenter();
+            v.paused ? v.play() : v.pause();
+            return;
+        }
+
+        var side = e.clientX < cx ? 'left' : 'right';
         if (tapSide && tapSide !== side) tapCount = 0;
         tapSide = side;
         tapCount++;
@@ -888,21 +967,16 @@ function play(raw) {
                 doSkip(tapSide, count - 1);
                 showUI();
             } else {
-                haptic(8);
                 if (!shown) {
                     showUI();
                 } else {
-                    flashCenter();
-                    v.paused ? v.play() : v.pause();
+                    hideUI();
                 }
             }
             tapCount = 0;
             tapSide = null;
         }, 270);
-    }
-
-    tapL.addEventListener('click', function (e) { e.stopPropagation(); handleTap('left'); });
-    tapR.addEventListener('click', function (e) { e.stopPropagation(); handleTap('right'); });
+    });
 
     (function () {
         if (window.innerWidth > 768) return;

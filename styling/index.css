@@ -134,7 +134,12 @@ body {
 #player {
     position: relative;
     width: 100%;
-    height: 100vh
+    height: 100vh;
+    cursor: none
+}
+
+#player.ui-on {
+    cursor: default
 }
 
 video {
@@ -301,6 +306,43 @@ video.ready {
     100% {
         opacity: 0;
         transform: scale(1.12)
+    }
+}
+
+#buffering-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 16;
+    opacity: 0;
+    transition: opacity 0.3s ease
+}
+
+#buffering-spinner.active {
+    opacity: 1
+}
+
+#buffering-spinner svg {
+    width: 52px;
+    height: 52px;
+    animation: spinnerRotate 0.9s linear infinite
+}
+
+#buffering-spinner circle {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.9);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 70
+}
+
+@keyframes spinnerRotate {
+    to {
+        transform: rotate(360deg)
     }
 }
 
@@ -516,8 +558,8 @@ video.ready {
     padding: 20px 20px 60px;
     background: var(--title-bg);
     z-index: 20;
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 0;
+    transform: translateY(-18px);
     transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out);
     pointer-events: none
 }
@@ -972,6 +1014,12 @@ video.ready {
     border-radius: 4px;
     white-space: pre-line;
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 1px 3px rgba(0, 0, 0, 0.9);
+    transition: background 0.15s ease, padding 0.15s ease;
+}
+
+#subtitle-text:empty {
+    background: transparent !important;
+    padding: 0 !important;
 }
 
 .sub-skeleton {
