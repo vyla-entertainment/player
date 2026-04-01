@@ -193,6 +193,58 @@ video.ready {
     letter-spacing: 0.04em
 }
 
+#download-panel {
+    position: absolute;
+    bottom: calc(100% + 15px);
+    right: 0;
+    background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: var(--menu-blur);
+    backdrop-filter: var(--menu-blur);
+    border-radius: var(--menu-radius);
+    z-index: 9999;
+    width: 280px;
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transform-origin: bottom right;
+    transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+    pointer-events: none;
+    border: 1px solid var(--white-06);
+    overflow: hidden;
+}
+
+#download-panel.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.dl-header {
+    padding: 16px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--white-45);
+    border-bottom: 1px solid var(--white-06);
+}
+
+@media (max-width: 768px) {
+    #download-panel {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        max-height: 70vh;
+    }
+
+    #download-panel.open {
+        transform: translateY(0);
+    }
+}
+
 .tap-zone {
     position: absolute;
     top: 0;
@@ -433,13 +485,32 @@ video.ready {
     justify-content: center;
     opacity: 0.82;
     transition: opacity 0.25s ease, transform 0.3s var(--ease-smooth);
-    border-radius: 50%
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden
+}
+
+.ctrl-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--white-08);
+    border-radius: 50%;
+    transform: scale(0);
+    transition: transform 0.3s var(--ease-out);
+    pointer-events: none
+}
+
+.ctrl-btn:active::after {
+    transform: scale(1)
 }
 
 .ctrl-btn i {
     font-size: var(--ctrl-icon-size);
     color: var(--white);
-    transition: transform 0.25s var(--ease-smooth)
+    transition: transform 0.25s var(--ease-smooth);
+    position: relative;
+    z-index: 1
 }
 
 .ctrl-btn:hover {
@@ -990,6 +1061,65 @@ video.ready {
     #sub-customize {
         padding: 0 24px 24px;
     }
+
+    .ctrl-btn {
+        width: 44px;
+        height: 44px
+    }
+
+    .ctrl-btn i {
+        font-size: 20px
+    }
+
+    #control-row {
+        gap: 16px
+    }
+
+    #track-wrap {
+        padding: 20px 0
+    }
+
+    #track {
+        height: 8px
+    }
+
+    #track-wrap:hover #track,
+    #track.drag {
+        height: 8px
+    }
+
+    #thumb {
+        width: 20px;
+        height: 20px
+    }
+
+    #t-cur,
+    #t-dur {
+        font-size: 13px
+    }
+
+    #progress-container {
+        margin-bottom: 14px
+    }
+
+    #player-controls-wrapper {
+        padding-bottom: 16px;
+        border-radius: 24px 24px 0 0
+    }
+
+    #controls {
+        padding-left: 16px;
+        padding-right: 16px
+    }
+
+    #progress-container {
+        padding-left: 16px;
+        padding-right: 16px
+    }
+
+    .ctrl-btn::after {
+        background: var(--white-12)
+    }
 }
 
 #subtitle-display {
@@ -1059,4 +1189,55 @@ video.ready {
     #title-text {
         font-size: var(--title-size-sm);
     }
+}
+
+.gesture-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+    pointer-events: none
+}
+
+#brightness-indicator {
+    left: 24px
+}
+
+#volume-indicator {
+    right: 24px
+}
+
+.gesture-indicator i {
+    font-size: 32px;
+    color: var(--white);
+    text-shadow: 0 2px 12px var(--black-70)
+}
+
+.gi-bar {
+    width: 6px;
+    height: 120px;
+    background: var(--black-70);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative
+}
+
+.gi-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--white);
+    transition: width 0.1s linear
+}
+
+.gi-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    text-shadow: 0 2px 8px var(--black-70)
 }
