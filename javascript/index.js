@@ -920,8 +920,17 @@ function play(raw) {
                     if (document.exitPictureInPicture) document.exitPictureInPicture();
                     else if (document.webkitExitPictureInPicture) document.webkitExitPictureInPicture();
                 } else {
-                    if (v.requestPictureInPicture) v.requestPictureInPicture();
-                    else if (v.webkitRequestPictureInPicture) v.webkitRequestPictureInPicture();
+                    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                    if (isIOS) {
+                        if (v.webkitEnterFullscreen) {
+                            v.webkitEnterFullscreen();
+                        } else if (v.requestFullscreen) {
+                            v.requestFullscreen();
+                        }
+                    } else {
+                        if (v.requestPictureInPicture) v.requestPictureInPicture();
+                        else if (v.webkitRequestPictureInPicture) v.webkitRequestPictureInPicture();
+                    }
                 }
             });
         }
@@ -1073,106 +1082,6 @@ function play(raw) {
             tapSide = null;
         }, 500);
     });
-
-    (function () {
-        if (window.innerWidth > 768) return;
-
-        var player = document.getElementById('player');
-        var v = document.getElementById('v');
-
-        var brightnessStartY = 0;
-        var brightnessStartValue = 100;
-        var isAdjustingBrightness = false;
-
-        var volumeStartY = 0;
-        var volumeStartValue = 1;
-        var isAdjustingVolume = false;
-
-        player.addEventListener('touchstart', function (e) {
-            if (controlsWrapper.contains(e.target)) return;
-            if (settingsPanel && settingsPanel.contains(e.target)) return;
-
-            var touch = e.touches[0];
-            var rect = player.getBoundingClientRect();
-            var x = touch.clientX - rect.left;
-            var side = x < rect.width / 2 ? 'left' : 'right';
-
-            if (side === 'left') {
-                brightnessStartY = touch.clientY;
-                brightnessStartValue = videoState.brightness;
-                isAdjustingBrightness = true;
-            } else {
-                volumeStartY = touch.clientY;
-                volumeStartValue = v.volume;
-                isAdjustingVolume = true;
-            }
-        }, { passive: true });
-
-        player.addEventListener('touchmove', function (e) {
-            if (!isAdjustingBrightness && !isAdjustingVolume) return;
-
-            var touch = e.touches[0];
-            var rect = player.getBoundingClientRect();
-            var deltaY = brightnessStartY - touch.clientY;
-            var sensitivity = rect.height * 0.002;
-
-            if (isAdjustingBrightness) {
-                var newBrightness = Math.max(0, Math.min(200, brightnessStartValue + deltaY * sensitivity));
-                videoState.brightness = newBrightness;
-                applyVideoStyles();
-                showBrightnessIndicator(newBrightness);
-            }
-
-            if (isAdjustingVolume) {
-                var newVolume = Math.max(0, Math.min(1, volumeStartValue + deltaY * sensitivity));
-                v.volume = newVolume;
-                showVolumeIndicator(newVolume);
-            }
-        }, { passive: true });
-
-        player.addEventListener('touchend', function () {
-            isAdjustingBrightness = false;
-            isAdjustingVolume = false;
-            hideIndicators();
-        });
-
-        function showBrightnessIndicator(value) {
-            var indicator = document.getElementById('brightness-indicator');
-            if (!indicator) {
-                indicator = document.createElement('div');
-                indicator.id = 'brightness-indicator';
-                indicator.className = 'gesture-indicator';
-                indicator.innerHTML = '<i class="fa-solid fa-sun"></i><div class="gi-bar"><div class="gi-fill"></div></div><div class="gi-value"></div>';
-                document.getElementById('player').appendChild(indicator);
-            }
-            indicator.style.display = 'flex';
-            indicator.querySelector('.gi-fill').style.width = (value / 200 * 100) + '%';
-            indicator.querySelector('.gi-value').textContent = Math.round(value) + '%';
-        }
-
-        function showVolumeIndicator(value) {
-            var indicator = document.getElementById('volume-indicator');
-            if (!indicator) {
-                indicator = document.createElement('div');
-                indicator.id = 'volume-indicator';
-                indicator.className = 'gesture-indicator';
-                indicator.innerHTML = '<i class="fa-solid fa-volume-high"></i><div class="gi-bar"><div class="gi-fill"></div></div><div class="gi-value"></div>';
-                document.getElementById('player').appendChild(indicator);
-            }
-            indicator.style.display = 'flex';
-            indicator.querySelector('.gi-fill').style.width = (value * 100) + '%';
-            indicator.querySelector('.gi-value').textContent = Math.round(value * 100) + '%';
-        }
-
-        function hideIndicators() {
-            setTimeout(function () {
-                var brightnessInd = document.getElementById('brightness-indicator');
-                var volumeInd = document.getElementById('volume-indicator');
-                if (brightnessInd) brightnessInd.style.display = 'none';
-                if (volumeInd) volumeInd.style.display = 'none';
-            }, 800);
-        }
-    })();
 
     (function () {
         if (window.innerWidth > 768) return;

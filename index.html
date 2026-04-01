@@ -126,6 +126,44 @@
 
                             <div class="settings-menu-group">
                                 <div class="settings-menu-header">
+                                    <div class="smh-left"><i class="fa-solid fa-video"></i> Video</div>
+                                    <div class="smh-right"><span class="smh-label" id="lbl-ratio">Contain</span> <i
+                                            class="fa-solid fa-chevron-right chevron"></i></div>
+                                </div>
+                                <div class="settings-menu-content">
+                                    <div class="settings-content-inner">
+                                        <div class="settings-list" id="ratio-opts">
+                                            <div class="settings-list-item active" data-ratio="contain"><i
+                                                    class="fa-regular fa-circle-dot"></i> Contain</div>
+                                            <div class="settings-list-item" data-ratio="cover"><i
+                                                    class="fa-regular fa-circle"></i> Cover</div>
+                                            <div class="settings-list-item" data-ratio="fill"><i
+                                                    class="fa-regular fa-circle"></i> Fill</div>
+                                        </div>
+                                        <div id="video-customize" style="display:block;padding: 0 20px 20px;">
+                                            <div class="sub-customize-title">Video Adjustments</div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Brightness</span>
+                                                <input type="number" id="vid-brightness" min="0" max="200" value="100"
+                                                    class="settings-input">
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Contrast</span>
+                                                <input type="number" id="vid-contrast" min="0" max="200" value="100"
+                                                    class="settings-input">
+                                            </div>
+                                            <div class="settings-row">
+                                                <span class="settings-row-label">Saturation</span>
+                                                <input type="number" id="vid-saturate" min="0" max="200" value="100"
+                                                    class="settings-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
                                     <div class="smh-left"><i class="fa-solid fa-closed-captioning"></i> Subtitles</div>
                                     <div class="smh-right"><span class="smh-label" id="lbl-subtitle">Off</span> <i
                                             class="fa-solid fa-chevron-right chevron"></i></div>
