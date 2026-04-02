@@ -391,12 +391,37 @@ function play(raw) {
         try { return parseFloat(localStorage.getItem('playbackSpeed')) || 1; } catch (err) { return 1; }
     })();
 
+    var savedVideoState = (function () {
+        try { return JSON.parse(localStorage.getItem('videoState') || '{}'); } catch (err) { return {}; }
+    })();
+
+    if (savedVideoState.brightness !== undefined) videoState.brightness = savedVideoState.brightness;
+    if (savedVideoState.contrast !== undefined) videoState.contrast = savedVideoState.contrast;
+    if (savedVideoState.saturate !== undefined) videoState.saturate = savedVideoState.saturate;
+    if (savedVideoState.ratio !== undefined) videoState.ratio = savedVideoState.ratio;
+
+    var tsKey = 'ts_' + id + (s ? '_s' + s + '_e' + (e || '1') : '');
+    var savedTimestamp = (function () {
+        try { return parseFloat(localStorage.getItem(tsKey)) || 0; } catch (err) { return 0; }
+    })();
+
     function saveSubSettings() {
         try {
             localStorage.setItem('subSettings', JSON.stringify({
                 font: subState.font, size: subState.size, color: subState.color,
                 bgColor: subState.bgColor, bgOpacity: subState.bgOpacity,
-                pos: subState.pos, edge: subState.edge
+                pos: subState.pos, edge: subState.edge, weight: subState.weight, spacing: subState.spacing
+            }));
+        } catch (err) { }
+    }
+
+    function saveVideoState() {
+        try {
+            localStorage.setItem('videoState', JSON.stringify({
+                brightness: videoState.brightness,
+                contrast: videoState.contrast,
+                saturate: videoState.saturate,
+                ratio: videoState.ratio
             }));
         } catch (err) { }
     }
@@ -563,7 +588,11 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        v.currentTime = 0.1;
+        if (savedTimestamp > 10) {
+            v.currentTime = savedTimestamp;
+        } else {
+            v.currentTime = 0.1;
+        }
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
 
@@ -831,10 +860,12 @@ function play(raw) {
     videoInputs.forEach(function (key) {
         var el = document.getElementById('vid-' + key);
         if (!el) return;
+        el.value = videoState[key];
         el.addEventListener('input', function (e) {
             e.stopPropagation();
             videoState[key] = this.value;
             applyVideoStyles();
+            saveVideoState();
         });
     });
 
@@ -844,9 +875,13 @@ function play(raw) {
             e.stopPropagation();
             videoState.ratio = this.dataset.ratio;
             applyVideoStyles();
+            saveVideoState();
             updateListActive('ratio-opts', this, 'lbl-ratio', this.textContent.trim());
             haptic(6);
         });
+        if (btn.dataset.ratio === videoState.ratio) {
+            updateListActive('ratio-opts', btn, 'lbl-ratio', btn.textContent.trim());
+        }
     });
 
     document.addEventListener('click', function (e) {
@@ -1016,7 +1051,14 @@ function play(raw) {
         if (!v.paused) showUI();
     });
 
-    v.addEventListener('timeupdate', setProg);
+    var tsSaveCounter = 0;
+    v.addEventListener('timeupdate', function () {
+        setProg();
+        tsSaveCounter++;
+        if (tsSaveCounter % 10 === 0 && v.currentTime > 5) {
+            try { localStorage.setItem(tsKey, v.currentTime); } catch (err) { }
+        }
+    });
     v.addEventListener('durationchange', function () {
         if (v.duration) {
             tDur.textContent = fmt(v.duration);
