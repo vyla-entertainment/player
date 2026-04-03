@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vyla-player-v1';
+const CACHE_NAME = 'vyla-player-v2';
 const urlsToCache = [
   '/',
   '/index.html',

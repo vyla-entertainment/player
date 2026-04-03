@@ -973,12 +973,19 @@ function play(raw) {
                     if (document.exitPictureInPicture) document.exitPictureInPicture();
                     else if (document.webkitExitPictureInPicture) document.webkitExitPictureInPicture();
                 } else {
-                    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                    if (isIOS) {
-                        if (v.webkitEnterFullscreen) {
+                    if (isIOSPWA()) {
+                        if (v.webkitSupportsPresentationMode && v.webkitSupportsPresentationMode('picture-in-picture')) {
+                            v.webkitSetPresentationMode(v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+                        } else if (v.requestPictureInPicture) {
+                            v.requestPictureInPicture().catch(function () {
+                                if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+                            });
+                        }
+                    } else if (isIOS()) {
+                        if (v.webkitSupportsPresentationMode && v.webkitSupportsPresentationMode('picture-in-picture')) {
+                            v.webkitSetPresentationMode(v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
+                        } else if (v.webkitEnterFullscreen) {
                             v.webkitEnterFullscreen();
-                        } else if (v.requestFullscreen) {
-                            v.requestFullscreen();
                         }
                     } else {
                         if (v.requestPictureInPicture) v.requestPictureInPicture();
