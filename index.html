@@ -1,6 +1,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vyla Player">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Vyla Player">
+    <meta name="theme-color" content="transparent">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="styling/index.css">
@@ -28,7 +36,7 @@
     </div>
 
     <div id="player">
-        <video id="v" playsinline></video>
+        <video id="v" playsinline webkit-playsinline controlsList="nodownload" x-webkit-airplay="allow"></video>
 
         <div id="title-bar"><span id="title-text"></span></div>
 

@@ -2,7 +2,7 @@
 
 :root {
     --font: 'Manrope', sans-serif;
-    --bg: #000;
+    --bg: transparent;
     --white: #fff;
     --white-92: rgba(255, 255, 255, 0.92);
     --white-85: rgba(255, 255, 255, 0.85);
@@ -22,9 +22,9 @@
     --black-50: rgba(0, 0, 0, 0.5);
     --black-10: rgba(10, 10, 10, 0.5);
     --grey-text: rgba(140, 140, 140, 0.85);
-    --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
-    --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
-    --menu-bg: var(--black-10);
+    --controls-bg: linear-gradient(to top, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.15) 60%, transparent 100%);
+    --title-bg: linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0%, transparent 100%);
+    --menu-bg: rgba(0, 0, 0, 0.2);
     --menu-blur: blur(10px) saturate(5);
     --menu-radius: 10px;
     --menu-min-width: 90px;
@@ -48,7 +48,7 @@
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-spring: cubic-bezier(0.25, 1.4, 0.5, 1);
     --ease-in: cubic-bezier(0.4, 0, 1, 1);
-    --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-smooth: cubic-bezier(0.  25, 1, 0.5, 1);
 }
 
 *,
@@ -62,11 +62,11 @@
 
 body {
     margin: 0;
-    background: #000;
+    background: black;
     overflow: hidden;
     position: fixed;
     inset: 0;
-    font-family: var(--font)
+    font-family: var(--font);
 }
 
 #loader {

@@ -1,0 +1,24 @@
+{
+  "name": "Vyla Player",
+  "short_name": "Vyla",
+  "description": "Video streaming player with fullscreen support",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "transparent",
+  "theme_color": "transparent",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": [
+    "entertainment",
+    "video"
+  ],
+  "lang": "en",
+  "scope": "/",
+  "prefer_related_applications": false
+}

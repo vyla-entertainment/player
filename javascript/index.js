@@ -11,6 +11,14 @@ function initLoaderVideo() {
     }
 }
 
+function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function isIOSPWA() {
+    return isIOS() && window.navigator.standalone === true;
+}
+
 function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
@@ -23,6 +31,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (mainVideo) {
             mainVideo.removeAttribute('controls');
         }
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(function (registration) {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(function (err) {
+                console.log('ServiceWorker registration failed: ', err);
+            });
     }
 });
 
@@ -984,11 +1002,14 @@ function play(raw) {
         document.addEventListener('MSFullscreenChange', updateFsIcon);
         v.addEventListener('webkitendfullscreen', updateFsIcon);
         v.addEventListener('webkitbeginfullscreen', updateFsIcon);
+
         btnFullscreen.addEventListener('click', function (e) {
             e.stopPropagation();
             haptic(10);
+
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
                 document.mozFullScreenElement || document.msFullscreenElement;
+
             if (fsEl) {
                 if (document.exitFullscreen) document.exitFullscreen();
                 else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -997,11 +1018,30 @@ function play(raw) {
                 else if (v.webkitExitFullscreen) v.webkitExitFullscreen();
             } else {
                 var player = document.getElementById('player');
-                if (player.requestFullscreen) player.requestFullscreen();
-                else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-                else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
-                else if (player.msRequestFullscreen) player.msRequestFullscreen();
-                else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+
+                if (isIOS() && isIOSPWA()) {
+                    if (v.webkitEnterFullscreen) {
+                        v.webkitEnterFullscreen();
+                    } else if (v.webkitSupportsFullscreen) {
+                        v.webkitEnterFullscreen();
+                    } else if (v.requestFullscreen) {
+                        v.requestFullscreen();
+                    }
+                } else if (isIOS()) {
+                    if (v.webkitEnterFullscreen) {
+                        v.webkitEnterFullscreen();
+                    } else if (v.webkitSupportsFullscreen && v.webkitDisplayingFullscreen) {
+                        v.webkitExitFullscreen();
+                    } else if (player.requestFullscreen) {
+                        player.requestFullscreen();
+                    }
+                } else {
+                    if (player.requestFullscreen) player.requestFullscreen();
+                    else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                    else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
+                    else if (player.msRequestFullscreen) player.msRequestFullscreen();
+                    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+                }
             }
         });
     }
