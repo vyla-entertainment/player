@@ -310,13 +310,19 @@ function play(raw) {
     })();
 
     function saveSubSettings() {
-        try {
-            localStorage.setItem('subSettings', JSON.stringify({
-                font: subState.font, size: subState.size, color: subState.color,
-                bgColor: subState.bgColor, bgOpacity: subState.bgOpacity,
-                pos: subState.pos, edge: subState.edge
-            }));
-        } catch (err) { }
+    try {
+        localStorage.setItem('subSettings', JSON.stringify({
+            font: subState.font,
+            size: subState.size,
+            color: subState.color,
+            bgColor: subState.bgColor,
+            bgOpacity: subState.bgOpacity,
+            pos: subState.pos,
+            edge: subState.edge,
+            weight: subState.weight,
+            spacing: subState.spacing
+        }));
+    } catch (err) {}
     }
 
     function applySubStyles() {
@@ -341,16 +347,6 @@ function play(raw) {
     function applyVideoStyles() {
         v.style.filter = 'brightness(' + videoState.brightness + '%) contrast(' + videoState.contrast + '%) saturate(' + videoState.saturate + '%)';
         v.style.objectFit = videoState.ratio;
-    }
-
-    function saveSubSettings() {
-        try {
-            localStorage.setItem('subSettings', JSON.stringify({
-                font: subState.font, size: subState.size, color: subState.color,
-                bgColor: subState.bgColor, bgOpacity: subState.bgOpacity,
-                pos: subState.pos, edge: subState.edge, weight: subState.weight, spacing: subState.spacing
-            }));
-        } catch (err) { }
     }
 
     if (subFontSelect) subFontSelect.value = subState.font;
@@ -939,55 +935,63 @@ function play(raw) {
     v.addEventListener('pause', function () { syncIcon(); showUI(true); clearTimeout(hideTimer); });
     
     if (s) {
-        v.addEventListener('ended', function () {
-            var nextE = parseInt(e || '1') + 1;
-            var nextS = parseInt(s);
-            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (d.error || !d.url) {
-                        fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
-                            .then(function (r) { return r.json(); })
-                            .then(function (d2) {
-                                if (d2.error || !d2.url) return;
-                                var toast = document.getElementById('now-playing-toast');
-                                var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
-                                title += ' \u00b7 S' + (nextS + 1) + 'E1';
-                                toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
-                                toast.className = '';
-                                setTimeout(function () {
-                                    toast.classList.add('enter');
-                                    setTimeout(function () {
-                                        toast.classList.remove('enter');
-                                        toast.classList.add('exit');
-                                        setTimeout(function () {
-                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
-                                        }, 800);
-                                    }, 3800);
-                                }, 400);
-                            })
-                            .catch(function () {});
-                        return;
-                    }
-                    var toast = document.getElementById('now-playing-toast');
-                    var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-                    title += ' \u00b7 S' + nextS + 'E' + nextE;
-                    toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
-                    toast.className = '';
-                    setTimeout(function () {
-                        toast.classList.add('enter');
-                        setTimeout(function () {
-                            toast.classList.remove('enter');
-                            toast.classList.add('exit');
+    v.addEventListener('ended', function () {
+        var nextE = parseInt(e || '1') + 1;
+        var nextS = parseInt(s);
+
+        fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.error || !d.url) {
+                    fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                        .then(function (r) { return r.json(); })
+                        .then(function (d2) {
+                            if (d2.error || !d2.url) return;
+
+                            var toast = document.getElementById('now-playing-toast');
+                            var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                            title += ' \u00b7 S' + (nextS + 1) + 'E1';
+
+                            toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                            toast.className = '';
+
                             setTimeout(function () {
-                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
-                            }, 800);
-                        }, 3800);
-                    }, 400);
-                })
-                .catch(function () {});
-        });
-        var nextEpBtn = document.getElementById('next-ep-btn');
+                                toast.classList.add('enter');
+                                setTimeout(function () {
+                                    toast.classList.remove('enter');
+                                    toast.classList.add('exit');
+                                    setTimeout(function () {
+                                        location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                                    }, 800);
+                                }, 3800);
+                            }, 400);
+                        })
+                        .catch(function () {});
+                    return;
+                }
+
+                var toast = document.getElementById('now-playing-toast');
+                var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                title += ' \u00b7 S' + nextS + 'E' + nextE;
+
+                toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                toast.className = '';
+
+                setTimeout(function () {
+                    toast.classList.add('enter');
+                    setTimeout(function () {
+                        toast.classList.remove('enter');
+                        toast.classList.add('exit');
+                        setTimeout(function () {
+                            location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+                        }, 800);
+                    }, 3800);
+                }, 400);
+            })
+            .catch(function () {});
+    });
+
+    var nextEpBtn = document.getElementById('next-ep-btn');
     var nextEpInner = document.getElementById('next-ep-inner');
     var nextEpLabel = document.getElementById('next-ep-label');
     var nextEpHref = null;
@@ -995,7 +999,8 @@ function play(raw) {
 
     var nextE = parseInt(e || '1') + 1;
     var nextS = parseInt(s);
-fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+
+    fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
         .then(function (r) { return r.json(); })
         .then(function (d) {
             if (d.error || !d.url) {
@@ -1003,28 +1008,20 @@ fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
                     .then(function (r) { return r.json(); })
                     .then(function (d2) {
                         if (d2.error || !d2.url) return;
+
                         var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
                         nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
                         nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
                         nextEpReady = true;
-                        console.log('next ep ready (next season)', nextEpHref);
                     });
             }
+
             var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
             nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
             nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
             nextEpReady = true;
-            console.log('next ep ready (same season)', nextEpHref);
         })
-        .catch(function (err) { console.log('next ep fetch failed', err); });
-            }
-            var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-            nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
-            nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
-            nextEpReady = true;
-        console.log('next ep ready', nextEpHref);
-        })
-        .catch(function (err) { console.log('next ep fetch failed', err); });
+        .catch(function () {});
 
     nextEpInner.addEventListener('click', function () {
         if (nextEpHref) location.href = nextEpHref;
@@ -1045,7 +1042,7 @@ fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
             nextEpBtn.classList.add('show');
         }
     });
-    }
+}
     
     document.getElementById('btn-play').addEventListener('click', function (e) {
         e.stopPropagation();
