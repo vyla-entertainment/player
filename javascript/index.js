@@ -57,7 +57,7 @@ document.addEventListener('keydown', function (e) {
 });
 
 var p = new URLSearchParams(location.search);
-var id = p.get('id'), s = p.get('s'), e = p.get('e');
+var id = p.get('id'), s = p.get('s'), e = p.get('e'), ap = p.get('ap');
 
 function showNowPlayingToast(title) {
     var toast = document.getElementById('now-playing-toast');
@@ -481,7 +481,7 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        v.currentTime = 0.1;
+        v.currentTime = 0.1;         if (ap) v.play().catch(function () { v.muted = true; v.play(); });
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
 
@@ -956,7 +956,7 @@ function play(raw) {
                                         toast.classList.remove('enter');
                                         toast.classList.add('exit');
                                         setTimeout(function () {
-                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1';
+                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
                                         }, 800);
                                     }, 3800);
                                 }, 400);
@@ -975,7 +975,7 @@ function play(raw) {
                             toast.classList.remove('enter');
                             toast.classList.add('exit');
                             setTimeout(function () {
-                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE;
+                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
                             }, 800);
                         }, 3800);
                     }, 400);
