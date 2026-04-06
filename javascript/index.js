@@ -481,7 +481,7 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        v.currentTime = 0.1;         if (ap) v.play().catch(function () { v.muted = true; v.play(); });
+        v.currentTime = 0.1;         if (ap) v.play().catch(function () {});
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
 
@@ -982,6 +982,47 @@ function play(raw) {
                 })
                 .catch(function () {});
         });
+        var nextEpBtn = document.getElementById('next-ep-btn');
+    var nextEpInner = document.getElementById('next-ep-inner');
+    var nextEpLabel = document.getElementById('next-ep-label');
+    var nextEpHref = null;
+    var nextEpReady = false;
+
+    var nextE = parseInt(e || '1') + 1;
+    var nextS = parseInt(s);
+    fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d.error || !d.url) {
+                return fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d2) {
+                        if (d2.error || !d2.url) return;
+                        var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                        nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
+                        nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                        nextEpReady = true;
+                    });
+            }
+            var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+            nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
+            nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+            nextEpReady = true;
+        })
+        .catch(function () {});
+
+    nextEpInner.addEventListener('click', function () {
+        if (nextEpHref) location.href = nextEpHref;
+    });
+
+    v.addEventListener('timeupdate', function () {
+        if (!nextEpReady || !v.duration) return;
+        if (v.duration - v.currentTime <= 300) {
+            nextEpBtn.classList.add('show');
+        } else {
+            nextEpBtn.classList.remove('show');
+        }
+    });
     }
     
     document.getElementById('btn-play').addEventListener('click', function (e) {
