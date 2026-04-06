@@ -1,14 +1,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Vyla Player">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Vyla Player">
-    <meta name="theme-color" content="transparent">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="styling/index.css">
@@ -36,7 +28,7 @@
     </div>
 
     <div id="player">
-        <video id="v" playsinline webkit-playsinline controlsList="nodownload" x-webkit-airplay="allow"></video>
+        <video id="v" playsinline></video>
 
         <div id="title-bar"><span id="title-text"></span></div>
 
@@ -128,44 +120,6 @@
                                 <div class="settings-menu-content">
                                     <div class="settings-content-inner">
                                         <div class="settings-list" id="quality-opts"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-header">
-                                    <div class="smh-left"><i class="fa-solid fa-video"></i> Video</div>
-                                    <div class="smh-right"><span class="smh-label" id="lbl-ratio">Contain</span> <i
-                                            class="fa-solid fa-chevron-right chevron"></i></div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list" id="ratio-opts">
-                                            <div class="settings-list-item active" data-ratio="contain"><i
-                                                    class="fa-regular fa-circle-dot"></i> Contain</div>
-                                            <div class="settings-list-item" data-ratio="cover"><i
-                                                    class="fa-regular fa-circle"></i> Cover</div>
-                                            <div class="settings-list-item" data-ratio="fill"><i
-                                                    class="fa-regular fa-circle"></i> Fill</div>
-                                        </div>
-                                        <div id="video-customize" style="display:block;padding: 0 20px 20px;">
-                                            <div class="sub-customize-title">Video Adjustments</div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Brightness</span>
-                                                <input type="number" id="vid-brightness" min="0" max="200" value="100"
-                                                    class="settings-input">
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Contrast</span>
-                                                <input type="number" id="vid-contrast" min="0" max="200" value="100"
-                                                    class="settings-input">
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Saturation</span>
-                                                <input type="number" id="vid-saturate" min="0" max="200" value="100"
-                                                    class="settings-input">
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -268,14 +222,8 @@
                             </div>
                         </div>
                     </div>
-                    <button id="btn-download" class="ctrl-btn" title="Download"><i
-                            class="fa-solid fa-download"></i></button>
-                    <button id="btn-pip" class="ctrl-btn">
-                        <i class="fa-solid fa-window-restore"></i>
-                    </button>
-                    <button id="btn-fullscreen" class="ctrl-btn">
-                        <i class="fa-solid fa-expand"></i>
-                    </button>
+                    <button id="btn-pip" class="ctrl-btn"><i class="fa-solid fa-window-restore"></i></button>
+                    <button id="btn-fullscreen" class="ctrl-btn"><i class="fa-solid fa-expand"></i></button>
                 </div>
             </div>
         </div>
@@ -285,6 +233,13 @@
         </div>
 
         <div id="subtitle-display"><span id="subtitle-text"></span></div>
+    </div>
+    
+    <div id="next-ep-btn" style="display:none;">
+        <div id="next-ep-inner">
+            <span id="next-ep-label">Next Episode</span>
+            <i class="fa-solid fa-arrow-right"></i>
+        </div>
     </div>
 
     <div id="now-playing-toast"></div>
