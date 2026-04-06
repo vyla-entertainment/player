@@ -2,7 +2,7 @@
 
 :root {
     --font: 'Manrope', sans-serif;
-    --bg: transparent;
+    --bg: #000;
     --white: #fff;
     --white-92: rgba(255, 255, 255, 0.92);
     --white-85: rgba(255, 255, 255, 0.85);
@@ -22,9 +22,9 @@
     --black-50: rgba(0, 0, 0, 0.5);
     --black-10: rgba(10, 10, 10, 0.5);
     --grey-text: rgba(140, 140, 140, 0.85);
-    --controls-bg: linear-gradient(to top, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.15) 60%, transparent 100%);
-    --title-bg: linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0%, transparent 100%);
-    --menu-bg: rgba(0, 0, 0, 0.2);
+    --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
+    --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
+    --menu-bg: var(--black-10);
     --menu-blur: blur(10px) saturate(5);
     --menu-radius: 10px;
     --menu-min-width: 90px;
@@ -48,7 +48,7 @@
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-spring: cubic-bezier(0.25, 1.4, 0.5, 1);
     --ease-in: cubic-bezier(0.4, 0, 1, 1);
-    --ease-smooth: cubic-bezier(0.  25, 1, 0.5, 1);
+    --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 *,
@@ -62,11 +62,11 @@
 
 body {
     margin: 0;
-    background: black;
+    background: #000;
     overflow: hidden;
     position: fixed;
     inset: 0;
-    font-family: var(--font);
+    font-family: var(--font)
 }
 
 #loader {
@@ -191,58 +191,6 @@ video.ready {
     font-weight: 500;
     color: var(--grey-text);
     letter-spacing: 0.04em
-}
-
-#download-panel {
-    position: absolute;
-    bottom: calc(100% + 15px);
-    right: 0;
-    background: rgba(0, 0, 0, 0.4);
-    -webkit-backdrop-filter: var(--menu-blur);
-    backdrop-filter: var(--menu-blur);
-    border-radius: var(--menu-radius);
-    z-index: 9999;
-    width: 280px;
-    opacity: 0;
-    transform: translateY(10px) scale(0.95);
-    transform-origin: bottom right;
-    transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
-    pointer-events: none;
-    border: 1px solid var(--white-06);
-    overflow: hidden;
-}
-
-#download-panel.open {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
-}
-
-.dl-header {
-    padding: 16px 20px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--white-45);
-    border-bottom: 1px solid var(--white-06);
-}
-
-@media (max-width: 768px) {
-    #download-panel {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        left: 0;
-        width: 100%;
-        border-radius: 20px 20px 0 0;
-        transform: translateY(100%);
-        max-height: 70vh;
-    }
-
-    #download-panel.open {
-        transform: translateY(0);
-    }
 }
 
 .tap-zone {
@@ -485,32 +433,13 @@ video.ready {
     justify-content: center;
     opacity: 0.82;
     transition: opacity 0.25s ease, transform 0.3s var(--ease-smooth);
-    border-radius: 50%;
-    position: relative;
-    overflow: hidden
-}
-
-.ctrl-btn::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--white-08);
-    border-radius: 50%;
-    transform: scale(0);
-    transition: transform 0.3s var(--ease-out);
-    pointer-events: none
-}
-
-.ctrl-btn:active::after {
-    transform: scale(1)
+    border-radius: 50%
 }
 
 .ctrl-btn i {
     font-size: var(--ctrl-icon-size);
     color: var(--white);
-    transition: transform 0.25s var(--ease-smooth);
-    position: relative;
-    z-index: 1
+    transition: transform 0.25s var(--ease-smooth)
 }
 
 .ctrl-btn:hover {
@@ -980,29 +909,6 @@ video.ready {
     color: #fff;
 }
 
-.settings-input {
-    background: rgba(255, 255, 255, 0.08);
-    border: none;
-    border-radius: 6px;
-    color: #fff;
-    padding: 8px 12px;
-    font-size: 14px;
-    font-family: inherit;
-    width: 80px;
-    text-align: center;
-    transition: border-color 0.2s, background 0.2s;
-}
-
-.settings-input:focus {
-    outline: none;
-    border-color: rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.12);
-}
-
-.settings-input:hover {
-    border-color: rgba(255, 255, 255, 0.25);
-}
-
 .color-picker-wrapper {
     position: relative;
     width: 60px;
@@ -1084,65 +990,6 @@ video.ready {
     #sub-customize {
         padding: 0 24px 24px;
     }
-
-    .ctrl-btn {
-        width: 44px;
-        height: 44px
-    }
-
-    .ctrl-btn i {
-        font-size: 20px
-    }
-
-    #control-row {
-        gap: 16px
-    }
-
-    #track-wrap {
-        padding: 20px 0
-    }
-
-    #track {
-        height: 8px
-    }
-
-    #track-wrap:hover #track,
-    #track.drag {
-        height: 8px
-    }
-
-    #thumb {
-        width: 20px;
-        height: 20px
-    }
-
-    #t-cur,
-    #t-dur {
-        font-size: 13px
-    }
-
-    #progress-container {
-        margin-bottom: 14px
-    }
-
-    #player-controls-wrapper {
-        padding-bottom: 16px;
-        border-radius: 24px 24px 0 0
-    }
-
-    #controls {
-        padding-left: 16px;
-        padding-right: 16px
-    }
-
-    #progress-container {
-        padding-left: 16px;
-        padding-right: 16px
-    }
-
-    .ctrl-btn::after {
-        background: var(--white-12)
-    }
 }
 
 #subtitle-display {
@@ -1212,4 +1059,47 @@ video.ready {
     #title-text {
         font-size: var(--title-size-sm);
     }
+}
+
+#next-ep-btn {
+    position: fixed;
+    bottom: 80px;
+    right: 24px;
+    z-index: 9000;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+}
+
+#next-ep-btn.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+#next-ep-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--white);
+    color: #000;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 10px 18px;
+    border-radius: 100px;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
+}
+
+#next-ep-inner:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 32px rgba(0,0,0,0.65);
+}
+
+#next-ep-inner:active {
+    transform: scale(0.96);
 }
