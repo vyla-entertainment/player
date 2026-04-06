@@ -932,7 +932,58 @@ function play(raw) {
     });
     v.addEventListener('play', function () { syncIcon(); showUI(); });
     v.addEventListener('pause', function () { syncIcon(); showUI(true); clearTimeout(hideTimer); });
-
+    
+    if (s) {
+        v.addEventListener('ended', function () {
+            var nextE = parseInt(e || '1') + 1;
+            var nextS = parseInt(s);
+            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.error || !d.url) {
+                        fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                            .then(function (r) { return r.json(); })
+                            .then(function (d2) {
+                                if (d2.error || !d2.url) return;
+                                var toast = document.getElementById('now-playing-toast');
+                                var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                                title += ' \u00b7 S' + (nextS + 1) + 'E1';
+                                toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                                toast.className = '';
+                                setTimeout(function () {
+                                    toast.classList.add('enter');
+                                    setTimeout(function () {
+                                        toast.classList.remove('enter');
+                                        toast.classList.add('exit');
+                                        setTimeout(function () {
+                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1';
+                                        }, 800);
+                                    }, 3800);
+                                }, 400);
+                            })
+                            .catch(function () {});
+                        return;
+                    }
+                    var toast = document.getElementById('now-playing-toast');
+                    var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                    title += ' \u00b7 S' + nextS + 'E' + nextE;
+                    toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                    toast.className = '';
+                    setTimeout(function () {
+                        toast.classList.add('enter');
+                        setTimeout(function () {
+                            toast.classList.remove('enter');
+                            toast.classList.add('exit');
+                            setTimeout(function () {
+                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE;
+                            }, 800);
+                        }, 3800);
+                    }, 400);
+                })
+                .catch(function () {});
+        });
+    }
+    
     document.getElementById('btn-play').addEventListener('click', function (e) {
         e.stopPropagation();
         haptic(10);
