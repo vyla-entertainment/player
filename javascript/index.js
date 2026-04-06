@@ -481,7 +481,7 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        v.currentTime = 0.1;         if (ap) v.play().catch(function () {});
+        v.currentTime = 0.1;         if (ap) {             var playAttempt = setInterval(function () {                 v.play().then(function () {                     clearInterval(playAttempt);                 }).catch(function () {});             }, 300);         }
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
 
@@ -1016,11 +1016,18 @@ function play(raw) {
     });
 
     v.addEventListener('timeupdate', function () {
-        if (!nextEpReady || !v.duration) return;
+        if (!nextEpReady || !v.duration || v.duration < 60) return;
         if (v.duration - v.currentTime <= 300) {
             nextEpBtn.classList.add('show');
         } else {
             nextEpBtn.classList.remove('show');
+        }
+    });
+
+    v.addEventListener('durationchange', function () {
+        if (!nextEpReady || !v.duration || v.duration < 60) return;
+        if (v.duration - v.currentTime <= 300) {
+            nextEpBtn.classList.add('show');
         }
     });
     }
