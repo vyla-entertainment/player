@@ -481,7 +481,12 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        v.currentTime = 0.1;         if (ap) {             var playAttempt = setInterval(function () {                 v.play().then(function () {                     clearInterval(playAttempt);                 }).catch(function () {});             }, 300);         }
+        v.currentTime = 0.1;         if (ap) {
+            v.muted = true;
+            v.play().then(function () {
+                v.muted = false;
+            }).catch(function () {});
+        }
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
 
@@ -990,7 +995,7 @@ function play(raw) {
 
     var nextE = parseInt(e || '1') + 1;
     var nextS = parseInt(s);
-    fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
         .then(function (r) { return r.json(); })
         .then(function (d) {
             if (d.error || !d.url) {
@@ -1002,14 +1007,24 @@ function play(raw) {
                         nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
                         nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
                         nextEpReady = true;
+                        console.log('next ep ready (next season)', nextEpHref);
                     });
             }
             var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
             nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
             nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
             nextEpReady = true;
+            console.log('next ep ready (same season)', nextEpHref);
         })
-        .catch(function () {});
+        .catch(function (err) { console.log('next ep fetch failed', err); });
+            }
+            var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+            nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
+            nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+            nextEpReady = true;
+        console.log('next ep ready', nextEpHref);
+        })
+        .catch(function (err) { console.log('next ep fetch failed', err); });
 
     nextEpInner.addEventListener('click', function () {
         if (nextEpHref) location.href = nextEpHref;
