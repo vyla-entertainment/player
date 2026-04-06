@@ -11,14 +11,6 @@ function initLoaderVideo() {
     }
 }
 
-function isIOS() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-}
-
-function isIOSPWA() {
-    return isIOS() && window.navigator.standalone === true;
-}
-
 function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
@@ -46,7 +38,6 @@ function hideLoader() {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'F' || e.key === 'f') {
         var player = document.getElementById('player');
-        var v = document.getElementById('v');
         var fsElement = document.fullscreenElement ||
             document.webkitFullscreenElement ||
             document.mozFullScreenElement ||
@@ -56,13 +47,11 @@ document.addEventListener('keydown', function (e) {
             else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
             else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
             else if (player.msRequestFullscreen) player.msRequestFullscreen();
-            else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
             else if (document.msExitFullscreen) document.msExitFullscreen();
-            else if (v.webkitExitFullscreen) v.webkitExitFullscreen();
         }
     }
 });
@@ -238,6 +227,8 @@ function play(raw) {
     var skipR = document.getElementById('skip-right');
     var skipLLbl = document.getElementById('skip-left-lbl');
     var skipRLbl = document.getElementById('skip-right-lbl');
+    var tapL = document.getElementById('tap-left');
+    var tapR = document.getElementById('tap-right');
     var btnPip = document.getElementById('btn-pip');
     var btnFullscreen = document.getElementById('btn-fullscreen');
     var btnSettings = document.getElementById('btn-settings');
@@ -257,87 +248,6 @@ function play(raw) {
     var subtitleText = document.getElementById('subtitle-text');
     var tooltip = document.getElementById('tooltip');
     var menuGroups = document.querySelectorAll('.settings-menu-group');
-
-    function showStatusToast(label, title, isError = false) {
-        var toast = document.getElementById('now-playing-toast');
-        var titleHtml = title ? '<span class="np-title">\u201c' + title + '\u201d</span>' : '';
-        toast.innerHTML = '<div class="np-glow" style="background:radial-gradient(ellipse 80% 40% at 50% 15%, ' + (isError ? 'rgba(231,76,60,0.15)' : 'var(--white-08)') + ' 0%, transparent 70%)"></div><div class="np-inner"><span class="np-label" style="' + (isError ? 'color:#e74c3c' : '') + '">' + label + '</span>' + titleHtml + '</div>';
-        toast.className = '';
-        void toast.offsetWidth;
-        toast.classList.add('enter');
-        setTimeout(function () {
-            toast.classList.remove('enter');
-            toast.classList.add('exit');
-        }, 2800);
-    }
-
-    async function fetchDownloadable(type, id, seasonNum, episodeNum) {
-        const base = 'https://vyla-api.pages.dev';
-        const endpoint = type === 'tv' ? 'tv' : 'movie';
-        let url = `${base}/api/download/${endpoint}?id=${id}`;
-        if (type === 'tv') url += `&season=${seasonNum ?? 1}&episode=${episodeNum ?? 1}`;
-        for (let i = 0; i < 4; i++) {
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.success && Array.isArray(data.sources)) {
-                    const dl = data.sources.filter(s => !s.is_hls && s.download_url).map(s => ({
-                        ...s, resolvedUrl: s.download_url.startsWith('http') ? s.download_url : `${base}${s.download_url}`
-                    }));
-                    if (dl.length > 0) return dl;
-                }
-            } catch (e) { }
-            await new Promise(r => setTimeout(r, 1500));
-        }
-        return [];
-    }
-
-    function openDownloadMenu(sources) {
-        let panel = document.getElementById('download-panel');
-        if (!panel) {
-            panel = document.createElement('div');
-            panel.id = 'download-panel';
-            document.getElementById('settings-btn-wrap').appendChild(panel);
-        }
-        panel.innerHTML = '<div class="dl-header">Available Qualities</div><div class="settings-list"></div>';
-        const list = panel.querySelector('.settings-list');
-        sources.forEach(s => {
-            const item = document.createElement('div');
-            item.className = 'settings-list-item';
-            item.innerHTML = '<i class="fa-solid fa-file-arrow-down"></i> ' + (s.quality || 'Unknown') + ' <span style="margin-left:auto;opacity:0.4;font-size:11px">' + (s.type || 'MP4').toUpperCase() + '</span>';
-            item.onclick = (e) => {
-                e.stopPropagation();
-                showStatusToast('Starting', 'Downloading File...');
-                window.location.href = s.resolvedUrl;
-                panel.classList.remove('open');
-            };
-            list.appendChild(item);
-        });
-        panel.classList.add('open');
-        const autoClose = (e) => {
-            if (!panel.contains(e.target) && e.target.id !== 'btn-download') {
-                panel.classList.remove('open');
-                document.removeEventListener('click', autoClose);
-            }
-        };
-        setTimeout(() => document.addEventListener('click', autoClose), 50);
-    }
-
-    document.getElementById('btn-download').addEventListener('click', async function (e) {
-        e.stopPropagation();
-        haptic(10);
-        if (window.dlBusy) return;
-        window.dlBusy = true;
-        showStatusToast('Searching');
-        const sources = await fetchDownloadable(s ? 'tv' : 'movie', id, s, e);
-        window.dlBusy = false;
-        if (sources.length > 0) {
-            showStatusToast('Success', sources.length + ' Qualities Found');
-            openDownloadMenu(sources);
-        } else {
-            showStatusToast('Error', 'No Direct Links Found', true);
-        }
-    });
 
     var hideTimer = null;
     var tapTimer = null;
@@ -399,37 +309,12 @@ function play(raw) {
         try { return parseFloat(localStorage.getItem('playbackSpeed')) || 1; } catch (err) { return 1; }
     })();
 
-    var savedVideoState = (function () {
-        try { return JSON.parse(localStorage.getItem('videoState') || '{}'); } catch (err) { return {}; }
-    })();
-
-    if (savedVideoState.brightness !== undefined) videoState.brightness = savedVideoState.brightness;
-    if (savedVideoState.contrast !== undefined) videoState.contrast = savedVideoState.contrast;
-    if (savedVideoState.saturate !== undefined) videoState.saturate = savedVideoState.saturate;
-    if (savedVideoState.ratio !== undefined) videoState.ratio = savedVideoState.ratio;
-
-    var tsKey = 'ts_' + id + (s ? '_s' + s + '_e' + (e || '1') : '');
-    var savedTimestamp = (function () {
-        try { return parseFloat(localStorage.getItem(tsKey)) || 0; } catch (err) { return 0; }
-    })();
-
     function saveSubSettings() {
         try {
             localStorage.setItem('subSettings', JSON.stringify({
                 font: subState.font, size: subState.size, color: subState.color,
                 bgColor: subState.bgColor, bgOpacity: subState.bgOpacity,
-                pos: subState.pos, edge: subState.edge, weight: subState.weight, spacing: subState.spacing
-            }));
-        } catch (err) { }
-    }
-
-    function saveVideoState() {
-        try {
-            localStorage.setItem('videoState', JSON.stringify({
-                brightness: videoState.brightness,
-                contrast: videoState.contrast,
-                saturate: videoState.saturate,
-                ratio: videoState.ratio
+                pos: subState.pos, edge: subState.edge
             }));
         } catch (err) { }
     }
@@ -596,11 +481,7 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        if (savedTimestamp > 10) {
-            v.currentTime = savedTimestamp;
-        } else {
-            v.currentTime = 0.1;
-        }
+        v.currentTime = 0.1;
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
 
@@ -868,12 +749,10 @@ function play(raw) {
     videoInputs.forEach(function (key) {
         var el = document.getElementById('vid-' + key);
         if (!el) return;
-        el.value = videoState[key];
         el.addEventListener('input', function (e) {
             e.stopPropagation();
             videoState[key] = this.value;
             applyVideoStyles();
-            saveVideoState();
         });
     });
 
@@ -883,13 +762,9 @@ function play(raw) {
             e.stopPropagation();
             videoState.ratio = this.dataset.ratio;
             applyVideoStyles();
-            saveVideoState();
             updateListActive('ratio-opts', this, 'lbl-ratio', this.textContent.trim());
             haptic(6);
         });
-        if (btn.dataset.ratio === videoState.ratio) {
-            updateListActive('ratio-opts', btn, 'lbl-ratio', btn.textContent.trim());
-        }
     });
 
     document.addEventListener('click', function (e) {
@@ -963,24 +838,8 @@ function play(raw) {
                     if (document.exitPictureInPicture) document.exitPictureInPicture();
                     else if (document.webkitExitPictureInPicture) document.webkitExitPictureInPicture();
                 } else {
-                    if (isIOSPWA()) {
-                        if (v.webkitSupportsPresentationMode && v.webkitSupportsPresentationMode('picture-in-picture')) {
-                            v.webkitSetPresentationMode(v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
-                        } else if (v.requestPictureInPicture) {
-                            v.requestPictureInPicture().catch(function () {
-                                if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-                            });
-                        }
-                    } else if (isIOS()) {
-                        if (v.webkitSupportsPresentationMode && v.webkitSupportsPresentationMode('picture-in-picture')) {
-                            v.webkitSetPresentationMode(v.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture');
-                        } else if (v.webkitEnterFullscreen) {
-                            v.webkitEnterFullscreen();
-                        }
-                    } else {
-                        if (v.requestPictureInPicture) v.requestPictureInPicture();
-                        else if (v.webkitRequestPictureInPicture) v.webkitRequestPictureInPicture();
-                    }
+                    if (v.requestPictureInPicture) v.requestPictureInPicture();
+                    else if (v.webkitRequestPictureInPicture) v.webkitRequestPictureInPicture();
                 }
             });
         }
@@ -997,48 +856,22 @@ function play(raw) {
         document.addEventListener('webkitfullscreenchange', updateFsIcon);
         document.addEventListener('mozfullscreenchange', updateFsIcon);
         document.addEventListener('MSFullscreenChange', updateFsIcon);
-        v.addEventListener('webkitendfullscreen', updateFsIcon);
-        v.addEventListener('webkitbeginfullscreen', updateFsIcon);
-
         btnFullscreen.addEventListener('click', function (e) {
             e.stopPropagation();
             haptic(10);
-
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
                 document.mozFullScreenElement || document.msFullscreenElement;
-
             if (fsEl) {
                 if (document.exitFullscreen) document.exitFullscreen();
                 else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
                 else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
                 else if (document.msExitFullscreen) document.msExitFullscreen();
-                else if (v.webkitExitFullscreen) v.webkitExitFullscreen();
             } else {
                 var player = document.getElementById('player');
-
-                if (isIOS() && isIOSPWA()) {
-                    if (v.webkitEnterFullscreen) {
-                        v.webkitEnterFullscreen();
-                    } else if (v.webkitSupportsFullscreen) {
-                        v.webkitEnterFullscreen();
-                    } else if (v.requestFullscreen) {
-                        v.requestFullscreen();
-                    }
-                } else if (isIOS()) {
-                    if (v.webkitEnterFullscreen) {
-                        v.webkitEnterFullscreen();
-                    } else if (v.webkitSupportsFullscreen && v.webkitDisplayingFullscreen) {
-                        v.webkitExitFullscreen();
-                    } else if (player.requestFullscreen) {
-                        player.requestFullscreen();
-                    }
-                } else {
-                    if (player.requestFullscreen) player.requestFullscreen();
-                    else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-                    else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
-                    else if (player.msRequestFullscreen) player.msRequestFullscreen();
-                    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-                }
+                if (player.requestFullscreen) player.requestFullscreen();
+                else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
+                else if (player.msRequestFullscreen) player.msRequestFullscreen();
             }
         });
     }
@@ -1088,14 +921,7 @@ function play(raw) {
         if (!v.paused) showUI();
     });
 
-    var tsSaveCounter = 0;
-    v.addEventListener('timeupdate', function () {
-        setProg();
-        tsSaveCounter++;
-        if (tsSaveCounter % 10 === 0 && v.currentTime > 5) {
-            try { localStorage.setItem(tsKey, v.currentTime); } catch (err) { }
-        }
-    });
+    v.addEventListener('timeupdate', setProg);
     v.addEventListener('durationchange', function () {
         if (v.duration) {
             tDur.textContent = fmt(v.duration);
@@ -1106,7 +932,58 @@ function play(raw) {
     });
     v.addEventListener('play', function () { syncIcon(); showUI(); });
     v.addEventListener('pause', function () { syncIcon(); showUI(true); clearTimeout(hideTimer); });
-
+    
+    if (s) {
+        v.addEventListener('ended', function () {
+            var nextE = parseInt(e || '1') + 1;
+            var nextS = parseInt(s);
+            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.error || !d.url) {
+                        fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                            .then(function (r) { return r.json(); })
+                            .then(function (d2) {
+                                if (d2.error || !d2.url) return;
+                                var toast = document.getElementById('now-playing-toast');
+                                var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                                title += ' \u00b7 S' + (nextS + 1) + 'E1';
+                                toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                                toast.className = '';
+                                setTimeout(function () {
+                                    toast.classList.add('enter');
+                                    setTimeout(function () {
+                                        toast.classList.remove('enter');
+                                        toast.classList.add('exit');
+                                        setTimeout(function () {
+                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1';
+                                        }, 800);
+                                    }, 3800);
+                                }, 400);
+                            })
+                            .catch(function () {});
+                        return;
+                    }
+                    var toast = document.getElementById('now-playing-toast');
+                    var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                    title += ' \u00b7 S' + nextS + 'E' + nextE;
+                    toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                    toast.className = '';
+                    setTimeout(function () {
+                        toast.classList.add('enter');
+                        setTimeout(function () {
+                            toast.classList.remove('enter');
+                            toast.classList.add('exit');
+                            setTimeout(function () {
+                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE;
+                            }, 800);
+                        }, 3800);
+                    }, 400);
+                })
+                .catch(function () {});
+        });
+    }
+    
     document.getElementById('btn-play').addEventListener('click', function (e) {
         e.stopPropagation();
         haptic(10);
@@ -1132,25 +1009,16 @@ function play(raw) {
         }
 
         var side = e.clientX < cx ? 'left' : 'right';
-        if (tapSide && tapSide !== side) {
-            tapCount = 0;
-            clearTimeout(tapTimer);
-        }
+        if (tapSide && tapSide !== side) tapCount = 0;
         tapSide = side;
         tapCount++;
-
-        if (tapCount >= 2) {
-            doSkip(tapSide, tapCount - 1);
-            showUI();
-            var skipText = document.getElementById('skip-text');
-            if (skipText) {
-                skipText.textContent = (tapCount - 1) + '+';
-            }
-        }
-
+        var count = tapCount;
         clearTimeout(tapTimer);
         tapTimer = setTimeout(function () {
-            if (tapCount < 2) {
+            if (count >= 2) {
+                doSkip(tapSide, count - 1);
+                showUI();
+            } else {
                 if (!shown) {
                     showUI();
                 } else {
@@ -1159,7 +1027,7 @@ function play(raw) {
             }
             tapCount = 0;
             tapSide = null;
-        }, 500);
+        }, 270);
     });
 
     (function () {
