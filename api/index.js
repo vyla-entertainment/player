@@ -86,9 +86,6 @@ function rewriteM3u8(body, url) {
                 ? origin + t
                 : dir + t;
 
-        const isSegment = /\.(ts|mp4|m4s)(\?|$)/i.test(abs);
-        if (isSegment) return abs;
-
         return '/api?url=' + encodeURIComponent(abs);
     }).join('\n');
 }
@@ -97,24 +94,20 @@ async function proxy(url, res) {
     const upstream = await fetchUpstream(url);
     const ct = (upstream.headers['content-type'] || '').toLowerCase();
 
-    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    const isVideo = ct.includes('video/') || /\.(ts|mp4|m4s)(\?|$)/i.test(url);
 
+    if (isVideo) {
+        res.writeHead(302, { 'Location': url });
+        return res.end();
+    }
+
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
     if (isM3u8) {
         const chunks = [];
         for await (const c of upstream) chunks.push(c);
         const body = Buffer.concat(chunks).toString('utf8');
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-        res.setHeader('Cache-Control', 'no-store');
-        res.setHeader('Access-Control-Allow-Origin', '*');
         return res.end(rewriteM3u8(body, url));
-    }
-
-    const isVideo = ct.includes('video/') || /\.(ts|mp4|m4s)(\?|$)/i.test(url);
-
-    if (isVideo) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.writeHead(302, { 'Location': url });
-        return res.end();
     }
 
     upstream.pipe(res);
