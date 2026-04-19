@@ -25,7 +25,7 @@
     --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
     --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
     --menu-bg: var(--black-10);
-    --menu-blur: blur(10px) saturate(5);
+    --menu-blur: blur(10px) saturate(3);
     --menu-radius: 10px;
     --menu-min-width: 90px;
     --ctrl-size: 36px;
@@ -678,7 +678,7 @@ video.ready {
     position: absolute;
     bottom: calc(100% + 15px);
     right: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.5);
     -webkit-backdrop-filter: var(--menu-blur);
     backdrop-filter: var(--menu-blur);
     border-radius: var(--menu-radius);
@@ -688,7 +688,7 @@ video.ready {
     overflow-y: auto;
     overflow-x: hidden;
     opacity: 0;
-    transform: translateY(10px) scale(0.95);
+    transform: translateY(10px) scale(0.9);
     transform-origin: bottom right;
     transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
     pointer-events: none;
@@ -712,7 +712,6 @@ video.ready {
 
 #settings-panel.open {
     opacity: 1;
-    transform: translateY(0) scale(1);
     pointer-events: auto;
 }
 
@@ -952,6 +951,25 @@ video.ready {
         touch-action: none;
     }
 
+    @media (orientation: portrait) {
+        #settings-panel {
+            width: 100%;
+            left: 0;
+            right: 0;
+            max-height: 75vh;
+            scale: 1;
+        }
+    }
+
+    @media (orientation: landscape) {
+        #settings-panel {
+            width: 100%;
+            left: 0;
+            right: 0;
+            max-height: 85vh;
+        }
+    }
+
     #settings-panel::before {
         content: "";
         display: block;
@@ -1091,13 +1109,13 @@ video.ready {
     padding: 10px 18px;
     border-radius: 100px;
     cursor: pointer;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
     transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
 }
 
 #next-ep-inner:hover {
     transform: scale(1.05);
-    box-shadow: 0 6px 32px rgba(0,0,0,0.65);
+    box-shadow: 0 6px 32px rgba(0, 0, 0, 0.65);
 }
 
 #next-ep-inner:active {

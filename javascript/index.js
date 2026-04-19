@@ -6,7 +6,6 @@ function initLoaderVideo() {
     if (loaderVideo) {
         loaderVideo.src = 'https://hosting.anticroom.workers.dev/view/video/prjcfe0som98vhyb5tyk.mp4';
         loaderVideo.play().catch(function (e) {
-            console.log('Background video autoplay failed:', e);
         });
     }
 }
@@ -309,20 +308,47 @@ function play(raw) {
         try { return parseFloat(localStorage.getItem('playbackSpeed')) || 1; } catch (err) { return 1; }
     })();
 
+    function saveTimestamp(videoId, currentTime) {
+        try {
+            var timestamps = JSON.parse(localStorage.getItem('videoTimestamps') || '{}');
+            timestamps[videoId] = currentTime;
+            localStorage.setItem('videoTimestamps', JSON.stringify(timestamps));
+        } catch (err) {
+        }
+    }
+
+    function getTimestamp(videoId) {
+        try {
+            var timestamps = JSON.parse(localStorage.getItem('videoTimestamps') || '{}');
+            return timestamps[videoId] || 0;
+        } catch (err) {
+            return 0;
+        }
+    }
+
+    function clearTimestamp(videoId) {
+        try {
+            var timestamps = JSON.parse(localStorage.getItem('videoTimestamps') || '{}');
+            delete timestamps[videoId];
+            localStorage.setItem('videoTimestamps', JSON.stringify(timestamps));
+        } catch (err) {
+        }
+    }
+
     function saveSubSettings() {
-    try {
-        localStorage.setItem('subSettings', JSON.stringify({
-            font: subState.font,
-            size: subState.size,
-            color: subState.color,
-            bgColor: subState.bgColor,
-            bgOpacity: subState.bgOpacity,
-            pos: subState.pos,
-            edge: subState.edge,
-            weight: subState.weight,
-            spacing: subState.spacing
-        }));
-    } catch (err) {}
+        try {
+            localStorage.setItem('subSettings', JSON.stringify({
+                font: subState.font,
+                size: subState.size,
+                color: subState.color,
+                bgColor: subState.bgColor,
+                bgOpacity: subState.bgOpacity,
+                pos: subState.pos,
+                edge: subState.edge,
+                weight: subState.weight,
+                spacing: subState.spacing
+            }));
+        } catch (err) { }
     }
 
     function applySubStyles() {
@@ -477,11 +503,12 @@ function play(raw) {
 
     function onReady() {
         v.classList.add('ready');
-        v.currentTime = 0.1;         if (ap) {
+
+        if (ap) {
             v.muted = true;
             v.play().then(function () {
                 v.muted = false;
-            }).catch(function () {});
+            }).catch(function () { });
         }
         if (savedSpeed !== 1) v.playbackRate = savedSpeed;
         tDur.textContent = fmt(v.duration);
@@ -923,19 +950,131 @@ function play(raw) {
     });
 
     v.addEventListener('timeupdate', setProg);
+
+    var timestampRestored = false;
+    function restoreTimestamp() {
+        if (timestampRestored) return;
+
+        var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+        var savedTime = getTimestamp(videoKey);
+
+        if (savedTime > 5 && v.duration > savedTime + 5) {
+            v.currentTime = savedTime;
+            timestampRestored = true;
+        }
+    }
+
+    v.addEventListener('loadedmetadata', function () {
+        restoreTimestamp();
+    });
+
+    v.addEventListener('loadeddata', function () {
+        restoreTimestamp();
+    });
+
+    v.addEventListener('canplay', function () {
+        restoreTimestamp();
+    });
+
     v.addEventListener('durationchange', function () {
         if (v.duration) {
             tDur.textContent = fmt(v.duration);
             clearTimeout(retryTimer);
             retryCount = maxRetries;
             hideBuffering();
+            restoreTimestamp();
         }
     });
+
+    setTimeout(function () {
+        restoreTimestamp();
+    }, 2000);
+
     v.addEventListener('play', function () { syncIcon(); showUI(); });
-    v.addEventListener('pause', function () { syncIcon(); showUI(true); clearTimeout(hideTimer); });
-    
+    v.addEventListener('pause', function () {
+        syncIcon();
+        showUI(true);
+        clearTimeout(hideTimer);
+        var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+        saveTimestamp(videoKey, v.currentTime);
+    });
+
+    var lastSaveTime = 0;
+    v.addEventListener('timeupdate', function () {
+        var now = Date.now();
+        if (now - lastSaveTime > 5000) {
+            var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+            saveTimestamp(videoKey, v.currentTime);
+            lastSaveTime = now;
+        }
+    });
+
     if (s) {
-    v.addEventListener('ended', function () {
+        v.addEventListener('ended', function () {
+            var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+            clearTimestamp(videoKey);
+
+            var nextE = parseInt(e || '1') + 1;
+            var nextS = parseInt(s);
+
+            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.error || !d.url) {
+                        fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                            .then(function (r) { return r.json(); })
+                            .then(function (d2) {
+                                if (d2.error || !d2.url) return;
+
+                                var toast = document.getElementById('now-playing-toast');
+                                var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                                title += ' \u00b7 S' + (nextS + 1) + 'E1';
+
+                                toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                                toast.className = '';
+
+                                setTimeout(function () {
+                                    toast.classList.add('enter');
+                                    setTimeout(function () {
+                                        toast.classList.remove('enter');
+                                        toast.classList.add('exit');
+                                        setTimeout(function () {
+                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                                        }, 800);
+                                    }, 3800);
+                                }, 400);
+                            })
+                            .catch(function () { });
+                        return;
+                    }
+
+                    var toast = document.getElementById('now-playing-toast');
+                    var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                    title += ' \u00b7 S' + nextS + 'E' + nextE;
+
+                    toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
+                    toast.className = '';
+
+                    setTimeout(function () {
+                        toast.classList.add('enter');
+                        setTimeout(function () {
+                            toast.classList.remove('enter');
+                            toast.classList.add('exit');
+                            setTimeout(function () {
+                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+                            }, 800);
+                        }, 3800);
+                    }, 400);
+                })
+                .catch(function () { });
+        });
+
+        var nextEpBtn = document.getElementById('next-ep-btn');
+        var nextEpInner = document.getElementById('next-ep-inner');
+        var nextEpLabel = document.getElementById('next-ep-label');
+        var nextEpHref = null;
+        var nextEpReady = false;
+
         var nextE = parseInt(e || '1') + 1;
         var nextS = parseInt(s);
 
@@ -943,107 +1082,46 @@ function play(raw) {
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.error || !d.url) {
-                    fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                    return fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
                         .then(function (r) { return r.json(); })
                         .then(function (d2) {
                             if (d2.error || !d2.url) return;
 
-                            var toast = document.getElementById('now-playing-toast');
-                            var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
-                            title += ' \u00b7 S' + (nextS + 1) + 'E1';
-
-                            toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
-                            toast.className = '';
-
-                            setTimeout(function () {
-                                toast.classList.add('enter');
-                                setTimeout(function () {
-                                    toast.classList.remove('enter');
-                                    toast.classList.add('exit');
-                                    setTimeout(function () {
-                                        location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
-                                    }, 800);
-                                }, 3800);
-                            }, 400);
-                        })
-                        .catch(function () {});
-                    return;
+                            var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                            nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
+                            nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                            nextEpReady = true;
+                        });
                 }
 
-                var toast = document.getElementById('now-playing-toast');
-                var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-                title += ' \u00b7 S' + nextS + 'E' + nextE;
-
-                toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
-                toast.className = '';
-
-                setTimeout(function () {
-                    toast.classList.add('enter');
-                    setTimeout(function () {
-                        toast.classList.remove('enter');
-                        toast.classList.add('exit');
-                        setTimeout(function () {
-                            location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
-                        }, 800);
-                    }, 3800);
-                }, 400);
+                var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
+                nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+                nextEpReady = true;
             })
-            .catch(function () {});
-    });
+            .catch(function () { });
 
-    var nextEpBtn = document.getElementById('next-ep-btn');
-    var nextEpInner = document.getElementById('next-ep-inner');
-    var nextEpLabel = document.getElementById('next-ep-label');
-    var nextEpHref = null;
-    var nextEpReady = false;
+        nextEpInner.addEventListener('click', function () {
+            if (nextEpHref) location.href = nextEpHref;
+        });
 
-    var nextE = parseInt(e || '1') + 1;
-    var nextS = parseInt(s);
-
-    fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-            if (d.error || !d.url) {
-                return fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
-                    .then(function (r) { return r.json(); })
-                    .then(function (d2) {
-                        if (d2.error || !d2.url) return;
-
-                        var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
-                        nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
-                        nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
-                        nextEpReady = true;
-                    });
+        v.addEventListener('timeupdate', function () {
+            if (!nextEpReady || !v.duration || v.duration < 60) return;
+            if (v.duration - v.currentTime <= 300) {
+                nextEpBtn.classList.add('show');
+            } else {
+                nextEpBtn.classList.remove('show');
             }
+        });
 
-            var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-            nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
-            nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
-            nextEpReady = true;
-        })
-        .catch(function () {});
+        v.addEventListener('durationchange', function () {
+            if (!nextEpReady || !v.duration || v.duration < 60) return;
+            if (v.duration - v.currentTime <= 300) {
+                nextEpBtn.classList.add('show');
+            }
+        });
+    }
 
-    nextEpInner.addEventListener('click', function () {
-        if (nextEpHref) location.href = nextEpHref;
-    });
-
-    v.addEventListener('timeupdate', function () {
-        if (!nextEpReady || !v.duration || v.duration < 60) return;
-        if (v.duration - v.currentTime <= 300) {
-            nextEpBtn.classList.add('show');
-        } else {
-            nextEpBtn.classList.remove('show');
-        }
-    });
-
-    v.addEventListener('durationchange', function () {
-        if (!nextEpReady || !v.duration || v.duration < 60) return;
-        if (v.duration - v.currentTime <= 300) {
-            nextEpBtn.classList.add('show');
-        }
-    });
-}
-    
     document.getElementById('btn-play').addEventListener('click', function (e) {
         e.stopPropagation();
         haptic(10);
