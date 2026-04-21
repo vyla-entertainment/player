@@ -76,6 +76,9 @@
                 <div id="control-row">
                     <button id="btn-play" class="ctrl-btn"><i class="fa-solid fa-play" id="play-ico"></i></button>
                     <div style="flex:1;"></div>
+                    <span id="ep-current-title"
+                        style="display:none;color:var(--white-92);font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">S1
+                        E1</span>
                     <div id="settings-btn-wrap">
                         <button id="btn-settings" class="ctrl-btn" title="Settings"><i
                                 class="fa-solid fa-cog"></i></button>
@@ -233,8 +236,21 @@
         </div>
 
         <div id="subtitle-display"><span id="subtitle-text"></span></div>
+
+        <div id="ep-panel-overlay"></div>
+
+        <div id="ep-panel">
+            <div id="ep-panel-header">
+                <div id="ep-season-tabs">
+                    <div id="ep-season-scroll">
+                        <div id="ep-season-pills"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="ep-list"></div>
+        </div>
     </div>
-    
+
     <div id="next-ep-btn" style="display:none;">
         <div id="next-ep-inner">
             <span id="next-ep-label">Next Episode</span>
