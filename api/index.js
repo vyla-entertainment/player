@@ -116,7 +116,7 @@ async function proxy(url, res) {
 async function getMetadata(id, s, e) {
     try {
         const k = process.env.TMDB_API_KEY;
-        
+
         if (!k) {
             return null;
         }
@@ -125,14 +125,14 @@ async function getMetadata(id, s, e) {
             ? `https://api.themoviedb.org/3/tv/${id}/season/${s}/episode/${e || 1}?api_key=${k}`
             : `https://api.themoviedb.org/3/movie/${id}?api_key=${k}`;
 
-        
+
         const res = await fetch(url);
-        
+
         if (!res.ok) {
             const errorText = await res.text();
             return null;
         }
-        
+
         const data = await res.json();
         return data;
     } catch (error) {
@@ -145,6 +145,34 @@ module.exports = async (req, res) => {
 
     const { searchParams } = new URL(req.url, 'http://x');
     const q = Object.fromEntries(searchParams);
+
+    if (q.tmdb_season) {
+        try {
+            const k = process.env.TMDB_API_KEY;
+            if (!k) { res.statusCode = 500; return res.end(JSON.stringify({ error: 'no key' })); }
+            const r = await fetch(`https://api.themoviedb.org/3/tv/${q.id}/season/${q.s}?api_key=${k}`);
+            const d = await r.json();
+            res.setHeader('Content-Type', 'application/json');
+            return res.end(JSON.stringify(d));
+        } catch (err) {
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    if (q.tmdb_show) {
+        try {
+            const k = process.env.TMDB_API_KEY;
+            if (!k) { res.statusCode = 500; return res.end(JSON.stringify({ error: 'no key' })); }
+            const r = await fetch(`https://api.themoviedb.org/3/tv/${q.id}?api_key=${k}`);
+            const d = await r.json();
+            res.setHeader('Content-Type', 'application/json');
+            return res.end(JSON.stringify(d));
+        } catch (err) {
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: err.message }));
+        }
+    }
 
     if (q.url) {
         try {
