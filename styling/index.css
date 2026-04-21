@@ -22,10 +22,15 @@
     --black-50: rgba(0, 0, 0, 0.5);
     --black-10: rgba(10, 10, 10, 0.5);
     --grey-text: rgba(140, 140, 140, 0.85);
+    --mask-0: #000;
+    --mask-40: rgba(0, 0, 0, 0.9);
+    --mask-70: rgba(0, 0, 0, 0.6);
+    --mask-100: transparent;
     --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
     --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
     --menu-bg: var(--black-10);
     --menu-blur: blur(10px) saturate(3);
+    --menu-blur-strong: blur(20px) saturate(3);
     --menu-radius: 10px;
     --menu-min-width: 90px;
     --ctrl-size: 36px;
@@ -450,6 +455,538 @@ video.ready {
 .ctrl-btn:active i {
     transform: scale(0.82);
     transition: transform 0.08s ease
+}
+
+#ep-browser-btn {
+    display: none;
+}
+
+#ep-panel-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9400;
+    background: transparent;
+    pointer-events: none;
+}
+
+#ep-panel-overlay.show {
+    pointer-events: auto;
+}
+
+#ep-panel {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    z-index: 9500;
+    background: rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: var(--menu-blur);
+    backdrop-filter: var(--menu-blur);
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+    top: 0;
+    width: 330px;
+    border-radius: 0;
+    transform: translateX(100%);
+    transition: transform 0.35s var(--ease-out), opacity 0.25s var(--ease-out);
+    opacity: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+#ep-panel.open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#ep-panel-header {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 20px 14px 20px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.1);
+    -webkit-backdrop-filter: var(--menu-blur-strong);
+    backdrop-filter: var(--menu-blur-strong);
+}
+
+#ep-panel-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+#ep-season-tabs {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#ep-season-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+#ep-season-arrows {
+    display: flex;
+    gap: 6px;
+}
+
+.ep-season-arrow {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--white-60);
+    font-family: var(--font);
+    font-size: 13px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.ep-season-arrow:hover {
+    background: var(--white-18);
+    color: var(--white);
+}
+
+.ep-season-arrow:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+#ep-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 8px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--white-22) transparent;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+@media (max-width: 768px) {
+    #ep-panel {
+        height: 75vh;
+    }
+}
+
+#ep-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+#ep-list::-webkit-scrollbar-thumb {
+    background: var(--white-22);
+    border-radius: 2px;
+}
+
+.ep-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.18s;
+}
+
+.ep-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ep-item.current {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ep-thumb {
+    flex-shrink: 0;
+    width: 120px;
+    height: 70px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--white-06);
+    position: relative;
+    overflow: hidden;
+    display: block;
+}
+
+.ep-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+}
+
+.ep-thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--white-06);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ep-thumb-placeholder i {
+    font-size: 14px;
+    color: var(--white-22);
+}
+
+.ep-num-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: var(--menu-blur-strong);
+    -webkit-backdrop-filter: var(--menu-blur-strong);
+    color: var(--white-92);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: var(--font);
+    line-height: 1.3;
+}
+
+.ep-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ep-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ep-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--white-85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ep-item.current .ep-name {
+    color: var(--white);
+    font-weight: 600;
+}
+
+.ep-meta {
+    font-size: 11px;
+    color: var(--white-45);
+    letter-spacing: 0.02em;
+}
+
+.ep-play-icon {
+    flex-shrink: 0;
+    color: var(--white-22);
+    font-size: 12px;
+    transition: color 0.18s;
+}
+
+.ep-item:hover .ep-play-icon {
+    color: var(--white-60);
+}
+
+.ep-item.current .ep-play-icon {
+    color: var(--white-75);
+}
+
+@media (max-width: 768px) {
+    #ep-panel {
+        top: auto;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: auto;
+        max-height: 85vh;
+        border-left: none;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        transition: transform 0.35s var(--ease-out), opacity 0.25s var(--ease-out);
+        overflow-y: auto;
+        touch-action: none;
+    }
+
+    #ep-panel::before {
+        content: "";
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: var(--white-22);
+        border-radius: 2px;
+        margin: 12px auto 0;
+        flex-shrink: 0;
+    }
+
+    #ep-panel.open {
+        transform: translateY(0);
+    }
+
+    #ep-panel.dragging {
+        transition: none !important;
+    }
+
+    #ep-season-tabs {
+        z-index: 10;
+        margin-top: 20px;
+    }
+
+    #ep-panel-header {
+        position: sticky;
+        padding: 0px 20px 14px 20px;
+        top: 0;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.5);
+        -webkit-backdrop-filter: var(--menu-blur);
+        backdrop-filter: var(--menu-blur);
+    }
+
+    #ep-panel-header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+
+    #ep-season-tabs {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    #ep-season-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--white);
+        white-space: nowrap;
+        min-width: 70px;
+        color: var(--white);
+        white-space: nowrap;
+        min-width: 70px;
+    }
+
+    #ep-season-arrows {
+        display: flex;
+        gap: 6px;
+    }
+
+    .ep-season-arrow {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--white-60);
+        font-family: var(--font);
+        font-size: 13px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .ep-season-arrow:hover {
+        background: var(--white-18);
+        color: var(--white);
+    }
+
+    .ep-season-arrow:disabled {
+        opacity: 0.3;
+        cursor: default;
+    }
+
+    #ep-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 12px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--white-22) transparent;
+    }
+
+    #ep-list::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    #ep-list::-webkit-scrollbar-thumb {
+        background: var(--white-22);
+        border-radius: 2px;
+    }
+
+    .ep-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.18s;
+    }
+
+    .ep-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .ep-item.current {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .ep-thumb-placeholder {
+        width: 100%;
+        height: 100%;
+        background: var(--white-06);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ep-thumb-placeholder i {
+        font-size: 14px;
+        color: var(--white-22);
+    }
+
+    .ep-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .ep-info-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .ep-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--white-85);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ep-item.current .ep-name {
+        color: var(--white);
+        font-weight: 600;
+    }
+
+    .ep-meta {
+        font-size: 11px;
+        color: var(--white-45);
+        letter-spacing: 0.02em;
+    }
+
+    .ep-play-icon {
+        flex-shrink: 0;
+        color: var(--white-22);
+        font-size: 12px;
+        transition: color 0.18s;
+    }
+
+    .ep-item:hover .ep-play-icon {
+        color: var(--white-60);
+    }
+
+    .ep-item.current .ep-play-icon {
+        color: var(--white-75);
+    }
+
+}
+
+#ep-season-scroll {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    z-index: 5;
+}
+
+#ep-season-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+#ep-season-pills {
+    display: flex;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.ep-season-pill {
+    flex-shrink: 0;
+    background: var(--white-08);
+    border: 1px solid transparent;
+    color: var(--white-60);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.ep-season-pill:hover {
+    background: var(--white-18);
+    color: var(--white);
+}
+
+.ep-season-pill.active {
+    background: var(--white);
+    color: #000;
+    font-weight: 600;
+}
+
+.ep-skel-block {
+    background: linear-gradient(90deg, var(--white-06) 25%, var(--white-08) 50%, var(--white-06) 75%);
+    background-size: 200% 100%;
+    animation: skelShimmer 1.4s ease infinite;
+}
+
+.ep-skel-line {
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--white-06) 25%, var(--white-08) 50%, var(--white-06) 75%);
+    background-size: 200% 100%;
+    animation: skelShimmer 1.4s ease infinite;
+    margin-bottom: 8px;
+}
+
+.ep-skel-line--title {
+    height: 13px;
+    width: 75%;
+}
+
+.ep-skel-line--meta {
+    height: 11px;
+    width: 35%;
+    animation-delay: 0.15s;
+}
+
+.ep-item-skeleton {
+    pointer-events: none;
 }
 
 #tooltip {
