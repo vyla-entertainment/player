@@ -1122,9 +1122,292 @@ function play(raw) {
         });
     }
 
+    (function () {
+        if (!s) return;
+
+        var epPanel = document.getElementById('ep-panel');
+        var epOverlay = document.getElementById('ep-panel-overlay');
+        var epList = document.getElementById('ep-list');
+        var epCurrentTitle = document.getElementById('ep-current-title');
+        var epPanelOpen = false;
+        var epSeasonData = {};
+        var currentSeason = parseInt(s);
+        var currentEpisode = parseInt(e || '1');
+        var activeSeason = currentSeason;
+        var totalSeasons = 1;
+
+        epCurrentTitle.style.display = '';
+
+        fetch('/api?tmdb_season=1&id=' + id + '&s=' + currentSeason)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.episodes) {
+                    var currentEp = d.episodes.find(function (ep) {
+                        return ep.episode_number === currentEpisode;
+                    });
+                    if (currentEp && currentEp.name) {
+                        epCurrentTitle.textContent = 'S' + currentSeason + ' E' + currentEpisode + ' \u00b7 ' + currentEp.name;
+                    } else {
+                        epCurrentTitle.textContent = 'S' + currentSeason + ' E' + currentEpisode;
+                    }
+                } else {
+                    epCurrentTitle.textContent = 'S' + currentSeason + ' E' + currentEpisode;
+                }
+            })
+            .catch(function () {
+                epCurrentTitle.textContent = 'S' + currentSeason + ' E' + currentEpisode;
+            });
+
+        function openEpPanel() {
+            epPanelOpen = true;
+            epPanel.classList.add('open');
+            epOverlay.classList.add('show');
+            showUI(true);
+            haptic(10);
+        }
+
+        function closeEpPanel() {
+            epPanelOpen = false;
+            epPanel.classList.remove('open');
+            epOverlay.classList.remove('show');
+            if (!v.paused) {
+                clearTimeout(hideTimer);
+                hideTimer = setTimeout(hideUI, 3200);
+            }
+        }
+
+        epCurrentTitle.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            epPanelOpen ? closeEpPanel() : openEpPanel();
+        });
+
+        var overlayTouchMoved = false;
+        epOverlay.addEventListener('touchstart', function () { overlayTouchMoved = false; }, { passive: true });
+        epOverlay.addEventListener('touchmove', function () { overlayTouchMoved = true; }, { passive: true });
+        epOverlay.addEventListener('click', function () { if (!overlayTouchMoved) closeEpPanel(); });
+
+        epPanel.addEventListener('click', function (ev) { ev.stopPropagation(); });
+        ['mousedown', 'pointerdown'].forEach(function (ev) {
+            epPanel.addEventListener(ev, function (e2) { e2.stopPropagation(); });
+        });
+
+        function buildSeasonPills() {
+            var pillsEl = document.getElementById('ep-season-pills');
+            pillsEl.innerHTML = '';
+            for (var i = 1; i <= totalSeasons; i++) {
+                (function (season) {
+                    var pill = document.createElement('div');
+                    pill.className = 'ep-season-pill' + (season === activeSeason ? ' active' : '');
+                    pill.textContent = 'Season ' + season;
+                    pill.addEventListener('click', function (ev) {
+                        ev.stopPropagation();
+                        activeSeason = season;
+                        buildSeasonPills();
+                        renderEpisodes(activeSeason);
+                        haptic(6);
+                    });
+                    pillsEl.appendChild(pill);
+                })(i);
+            }
+            var activePill = pillsEl.querySelector('.ep-season-pill.active');
+            if (activePill) {
+                setTimeout(function () {
+                    activePill.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+                }, 50);
+            }
+        }
+
+        function updateSeasonNav() {
+            buildSeasonPills();
+        }
+
+        function renderEpisodes(season) {
+            var eps = epSeasonData[season];
+            var t0 = performance.now();
+
+            function doRender(items) {
+                var newList = document.createElement('div');
+                newList.style.cssText = 'opacity:0;transition:opacity 0.22s ease;';
+
+                if (!items) {
+                    for (var s = 0; s < 10; s++) {
+                        var skel = document.createElement('div');
+                        skel.className = 'ep-item ep-item-skeleton';
+                        skel.innerHTML =
+                            '<div class="ep-thumb ep-skel-block"></div>' +
+                            '<div class="ep-info">' +
+                            '<div class="ep-skel-line ep-skel-line--title"></div>' +
+                            '<div class="ep-skel-line ep-skel-line--meta"></div>' +
+                            '</div>';
+                        newList.appendChild(skel);
+                    }
+                } else {
+                    items.forEach(function (ep) {
+                        var isCurrent = (season === currentSeason && ep.episode_number === currentEpisode);
+                        var item = document.createElement('div');
+                        item.className = 'ep-item' + (isCurrent ? ' current' : '');
+
+                        var thumbHtml = '<div class="ep-thumb">';
+                        if (ep.still_path) {
+                            thumbHtml += '<img src="https://image.tmdb.org/t/p/w185' + ep.still_path + '" loading="lazy" alt="">';
+                        } else {
+                            thumbHtml += '<div class="ep-thumb-placeholder"><i class="fa-solid fa-film"></i></div>';
+                        }
+                        thumbHtml += '<span class="ep-num-badge">E' + ep.episode_number + '</span></div>';
+
+                        item.innerHTML = thumbHtml +
+                            '<div class="ep-info">' +
+                            '<div class="ep-info-row"><span class="ep-name">' + (ep.name || 'Episode ' + ep.episode_number) + '</span></div>' +
+                            '<div class="ep-meta">' + (ep.runtime ? ep.runtime + ' min' : '') + '</div>' +
+                            '</div>';
+
+                        if (!isCurrent) {
+                            item.addEventListener('click', function () {
+                                haptic(10);
+                                location.href = location.pathname + '?id=' + id + '&s=' + season + '&e=' + ep.episode_number + '&ap=1';
+                            });
+                        }
+                        newList.appendChild(item);
+                    });
+                }
+
+                epList.style.opacity = '0';
+                epList.style.transition = 'opacity 0.18s ease';
+
+                setTimeout(function () {
+                    epList.innerHTML = '';
+                    epList.scrollTop = 0;
+                    epList.appendChild(newList);
+
+                    epList.style.opacity = '1';
+                    setTimeout(function () {
+                        newList.style.opacity = '1';
+                    }, 10);
+
+                    if (items) {
+                        var currentItem = epList.querySelector('.ep-item.current');
+                        if (currentItem) {
+                            setTimeout(function () {
+                                currentItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                            }, 80);
+                        }
+                    }
+                }, 180);
+            }
+
+            if (!eps) {
+                doRender(null);
+                fetchSeason(season, function () {
+                    renderEpisodes(season);
+                });
+                return;
+            }
+
+            doRender(eps);
+        }
+
+        function fetchSeason(season, cb) {
+            fetch('/api?tmdb_season=1&id=' + id + '&s=' + season)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    epSeasonData[season] = d.episodes || generateFallback(season);
+                    if (cb) cb();
+                })
+                .catch(function () {
+                    epSeasonData[season] = generateFallback(season);
+                    if (cb) cb();
+                });
+        }
+
+        function generateFallback(season) {
+            var arr = [];
+            for (var i = 1; i <= 20; i++) arr.push({ episode_number: i, name: 'Episode ' + i, runtime: null, still_path: null });
+            return arr;
+        }
+
+        fetch('/api?tmdb_show=1&id=' + id)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                totalSeasons = d.number_of_seasons || currentSeason;
+                updateSeasonNav();
+                fetchSeason(currentSeason, function () { renderEpisodes(currentSeason); });
+            })
+            .catch(function () {
+                totalSeasons = currentSeason;
+                updateSeasonNav();
+                fetchSeason(currentSeason, function () { renderEpisodes(currentSeason); });
+            });
+
+        (function () {
+            if (window.innerWidth > 768) return;
+            var dragStartY = 0;
+            var dragStartX = 0;
+            var dragCurrentY = 0;
+            var isDraggingPanel = false;
+            var directionLocked = false;
+            var panelHeight = 0;
+            var handle = epPanel.querySelector('::before') || epPanel;
+
+            epPanel.addEventListener('touchstart', function (e) {
+                var touch = e.touches[0];
+                var panelRect = epPanel.getBoundingClientRect();
+                var hitY = touch.clientY - panelRect.top;
+                if (hitY > 48) return;
+                dragStartY = touch.clientY;
+                dragStartX = touch.clientX;
+                dragCurrentY = 0;
+                directionLocked = false;
+                isDraggingPanel = false;
+                panelHeight = epPanel.offsetHeight;
+            }, { passive: true });
+
+            epPanel.addEventListener('touchmove', function (e) {
+                if (panelHeight === 0) return;
+                var touch = e.touches[0];
+                var dy = touch.clientY - dragStartY;
+                var dx = touch.clientX - dragStartX;
+                if (!directionLocked) {
+                    if (Math.abs(dx) > Math.abs(dy) + 6) { panelHeight = 0; return; }
+                    if (Math.abs(dy) > Math.abs(dx) + 6) {
+                        isDraggingPanel = true;
+                        directionLocked = true;
+                        epPanel.classList.add('dragging');
+                    } else {
+                        return;
+                    }
+                }
+                if (!isDraggingPanel) return;
+                e.preventDefault();
+                var delta = dy < 0 ? 0 : dy;
+                dragCurrentY = delta;
+                epPanel.style.transform = 'translateY(' + delta + 'px)';
+            }, { passive: false });
+
+            epPanel.addEventListener('touchend', function () {
+                if (!isDraggingPanel) { panelHeight = 0; return; }
+                isDraggingPanel = false;
+                directionLocked = false;
+                epPanel.classList.remove('dragging');
+                if (dragCurrentY > panelHeight * 0.3) {
+                    epPanel.style.transition = 'transform 0.35s var(--ease-out)';
+                    epPanel.style.transform = 'translateY(100%)';
+                    setTimeout(function () {
+                        epPanel.style.transition = '';
+                        epPanel.style.transform = '';
+                        closeEpPanel();
+                    }, 360);
+                } else {
+                    epPanel.style.transition = 'transform 0.3s var(--ease-spring)';
+                    epPanel.style.transform = 'translateY(0)';
+                    setTimeout(function () { epPanel.style.transition = ''; }, 320);
+                }
+                panelHeight = 0;
+            });
+        })();
+    })();
+
     document.getElementById('btn-play').addEventListener('click', function (e) {
         e.stopPropagation();
-        haptic(10);
         v.paused ? v.play() : v.pause();
     });
 
