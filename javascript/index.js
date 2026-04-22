@@ -697,7 +697,35 @@ function play(raw) {
     v.addEventListener('canplay', hideBuffering);
 
     if (Hls.isSupported()) {
-        var hls = new Hls({ startLevel: -1, maxBufferLength: 20, maxMaxBufferLength: 40, maxBufferSize: 30 * 1000 * 1000, enableWorker: true });
+        var hls = new Hls({
+            startLevel: -1,
+            abrEwmaDefaultEstimate: 8000000,
+            abrBandWidthFactor: 0.98,
+            abrBandWidthUpFactor: 0.98,
+            maxBufferLength: 120,
+            maxMaxBufferLength: 600,
+            maxBufferSize: 120 * 1000 * 1000,
+            maxBufferHole: 0.25,
+            highBufferWatchdogPeriod: 2,
+            nudgeMaxRetry: 10,
+            nudgeOffset: 0.2,
+            liveSyncDurationCount: 3,
+            enableWorker: true,
+            lowLatencyMode: false,
+            progressive: true,
+            backBufferLength: 30,
+            frontBufferFlushThreshold: Infinity,
+            startFragPrefetch: true,
+            testBandwidth: true,
+            fragLoadingTimeOut: 20000,
+            manifestLoadingTimeOut: 20000,
+            levelLoadingTimeOut: 20000,
+            fragLoadingMaxRetry: 6,
+            manifestLoadingMaxRetry: 4,
+            levelLoadingMaxRetry: 4,
+            fragLoadingRetryDelay: 500,
+            fragLoadingMaxRetryTimeout: 8000,
+        });
         hls.loadSource(src);
         initThumbSeek(src);
         hls.attachMedia(v);
