@@ -171,7 +171,7 @@ function detectFormat(url, hint) {
 }
 
 function testSubtitle(sub) {
-    return fetch(sub.url)
+    return fetch(sub.url, sub.headers ? { headers: sub.headers } : undefined)
         .then(function (r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.text();
@@ -197,14 +197,16 @@ function fetchSubDirect(sub) {
 }
 
 function fetchSubViaProxy(sub) {
+    var proxyUrl = 'https://vyla-api.pages.dev/api/proxy?url=' + encodeURIComponent(sub.url);
     return testSubtitle(Object.assign({}, sub, {
-        url: 'https://vyla-api.pages.dev/api/proxy?url=' + encodeURIComponent(sub.url)
+        url: proxyUrl,
+        headers: { 'Referer': new URL(sub.url).origin + '/', 'Origin': new URL(sub.url).origin }
     }));
 }
 
 function fetchSubWithFallback(sub) {
-    return fetchSubDirect(sub).catch(function (err) {
-        return fetchSubViaProxy(sub);
+    return fetchSubViaProxy(sub).catch(function () {
+        return fetchSubDirect(sub);
     });
 }
 
@@ -450,13 +452,132 @@ function play(raw) {
         tCur.textContent = fmt(v.currentTime);
     }
 
+    var tooltipCanvas = document.getElementById('tooltip-canvas');
+    var tooltipTime = document.getElementById('tooltip-time');
+    var tooltipCtx = tooltipCanvas ? tooltipCanvas.getContext('2d', { willReadFrequently: true }) : null;
+
+    var thumbCache = {};
+    var thumbSeekBusy = false;
+    var thumbSeekPending = null;
+    var thumbSeekReady = false;
+    var lastTooltipPct = -1;
+
+    var thumbOffscreen = document.createElement('canvas');
+    thumbOffscreen.width = 160;
+    thumbOffscreen.height = 90;
+    var thumbOffCtx = thumbOffscreen.getContext('2d', { willReadFrequently: true });
+
+    var thumbVid = document.createElement('video');
+    thumbVid.muted = true;
+    thumbVid.preload = 'auto';
+    thumbVid.playsInline = true;
+    thumbVid.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(thumbVid);
+
+    var thumbHls = null;
+
+    function initThumbSeek(hlsSrc) {
+        if (!tooltipCanvas) return;
+
+        if (Hls.isSupported()) {
+            thumbHls = new Hls({
+                startLevel: 0,
+                maxBufferLength: 8,
+                maxMaxBufferLength: 12,
+                maxBufferSize: 8 * 1000 * 1000,
+                enableWorker: false,
+                startPosition: 0
+            });
+            thumbHls.loadSource(hlsSrc);
+            thumbHls.attachMedia(thumbVid);
+            thumbHls.on(Hls.Events.MANIFEST_PARSED, function () {
+                thumbHls.currentLevel = 0;
+                thumbSeekReady = true;
+                if (thumbSeekPending !== null) {
+                    var t = thumbSeekPending;
+                    thumbSeekPending = null;
+                    doThumbSeek(t);
+                }
+            });
+        } else if (thumbVid.canPlayType('application/vnd.apple.mpegurl')) {
+            thumbVid.src = hlsSrc;
+            thumbVid.addEventListener('loadedmetadata', function () {
+                thumbSeekReady = true;
+                if (thumbSeekPending !== null) {
+                    var t = thumbSeekPending;
+                    thumbSeekPending = null;
+                    doThumbSeek(t);
+                }
+            });
+        }
+
+        thumbVid.addEventListener('seeked', function () {
+            if (!thumbSeekBusy) return;
+            try {
+                thumbOffCtx.drawImage(thumbVid, 0, 0, 160, 90);
+                var key = Math.round(thumbVid.currentTime * 2) / 2;
+                thumbCache[key] = thumbOffCtx.getImageData(0, 0, 160, 90);
+                if (tooltipCtx) tooltipCtx.putImageData(thumbCache[key], 0, 0);
+            } catch (ex) { }
+            thumbSeekBusy = false;
+            if (thumbSeekPending !== null) {
+                var next = thumbSeekPending;
+                thumbSeekPending = null;
+                doThumbSeek(next);
+            }
+        });
+    }
+
+    function doThumbSeek(t) {
+        thumbSeekBusy = true;
+        thumbVid.currentTime = t;
+    }
+
+    function seekThumb(t) {
+        if (!thumbSeekReady) { thumbSeekPending = t; return; }
+        var key = Math.round(t * 2) / 2;
+        if (thumbCache[key]) {
+            if (tooltipCtx) tooltipCtx.putImageData(thumbCache[key], 0, 0);
+            return;
+        }
+        if (thumbSeekBusy) { thumbSeekPending = t; return; }
+        doThumbSeek(t);
+    }
+
+    function restoreMainVideo() {
+        thumbSeekBusy = false;
+        thumbSeekPending = null;
+    }
+
+    var lastTooltipPct = -1;
+
     function hoverTooltip(x) {
         if (!v.duration) return;
         var r = wrap.getBoundingClientRect();
         var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
-        tooltip.textContent = fmt(pct * v.duration);
+        var t = pct * v.duration;
+        var key = Math.round(t * 2) / 2;
+
         tooltip.style.left = (pct * r.width) + 'px';
+        tooltipTime.textContent = fmt(t);
         tooltip.classList.add('show');
+
+        if (Math.abs(pct - lastTooltipPct) < 0.004) return;
+        lastTooltipPct = pct;
+
+        if (thumbCache[key]) {
+            if (tooltipCtx) tooltipCtx.putImageData(thumbCache[key], 0, 0);
+            return;
+        }
+
+        var closest = null, minDist = Infinity;
+        for (var k in thumbCache) {
+            var d = Math.abs(k - t);
+            if (d < minDist) { minDist = d; closest = k; }
+        }
+        if (closest !== null && tooltipCtx) tooltipCtx.putImageData(thumbCache[closest], 0, 0);
+
+        seekThumb(t);
     }
 
     function doSkip(dir, taps) {
@@ -578,6 +699,7 @@ function play(raw) {
     if (Hls.isSupported()) {
         var hls = new Hls({ startLevel: -1, maxBufferLength: 20, maxMaxBufferLength: 40, maxBufferSize: 30 * 1000 * 1000, enableWorker: true });
         hls.loadSource(src);
+        initThumbSeek(src);
         hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
             onReady();
@@ -611,6 +733,7 @@ function play(raw) {
         });
     } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = src;
+        initThumbSeek(src);
         v.addEventListener('loadedmetadata', function () {
             var loaderBottomGlow = document.querySelector('.loader-bottom-glow');
             if (loaderBottomGlow) {
@@ -908,6 +1031,8 @@ function play(raw) {
     wrap.addEventListener('mouseleave', function () {
         if (!dragging) trackEl.classList.remove('hover');
         tooltip.classList.remove('show');
+        lastTooltipPct = -1;
+        restoreMainVideo();
     });
     wrap.addEventListener('mousemove', function (e) { e.stopPropagation(); hoverTooltip(e.clientX); });
     wrap.addEventListener('mousedown', function (e) {

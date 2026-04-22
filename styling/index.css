@@ -993,23 +993,42 @@ video.ready {
     position: absolute;
     bottom: calc(100% + 10px);
     transform: translateX(-50%);
-    background: rgba(10, 10, 10, 0);
-    -webkit-backdrop-filter: var(--menu-blur);
-    backdrop-filter: var(--menu-blur);
+    background: transparent;
     color: var(--white);
     font-size: var(--tooltip-size);
-    font-weight: 500;
-    padding: 4px 8px;
-    border-radius: 5px;
+    font-weight: 600;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.18s ease;
-    letter-spacing: 0.03em
+    transition: opacity 0.12s ease;
+    letter-spacing: 0.03em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    z-index: 50;
 }
 
 #tooltip.show {
-    opacity: 1
+    opacity: 1;
+}
+
+#tooltip-canvas {
+    display: block;
+    width: 160px;
+    height: 90px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #111;
+    image-rendering: auto;
+}
+
+#tooltip-time {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--white-92);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+    letter-spacing: 0.04em;
 }
 
 #track-wrap {
