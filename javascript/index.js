@@ -645,11 +645,13 @@ function play(raw) {
     }
 
     var retryCount = 0;
-    var maxRetries = 4;
+    var maxRetries = 6;
     var retryTimer = null;
+    var durationPollTimer = null;
 
     function scheduleRetry() {
         if (retryCount >= maxRetries) return;
+        var delay = retryCount === 0 ? 1800 : 3000;
         retryTimer = setTimeout(function () {
             if (!isNaN(v.duration) && v.duration > 0) return;
             retryCount++;
@@ -672,7 +674,24 @@ function play(raw) {
                     scheduleRetry();
                 })
                 .catch(function () { scheduleRetry(); });
-        }, 4000);
+        }, delay);
+    }
+
+    function startDurationPoll() {
+        clearInterval(durationPollTimer);
+        var pollCount = 0;
+        durationPollTimer = setInterval(function () {
+            pollCount++;
+            if (!isNaN(v.duration) && v.duration > 0) {
+                clearInterval(durationPollTimer);
+                tDur.textContent = fmt(v.duration);
+                restoreTimestamp();
+                return;
+            }
+            if (pollCount >= 40) {
+                clearInterval(durationPollTimer);
+            }
+        }, 250);
     }
 
     var bufSpinner = document.getElementById('buffering-spinner');
@@ -695,6 +714,36 @@ function play(raw) {
     v.addEventListener('stalled', showBuffering);
     v.addEventListener('playing', hideBuffering);
     v.addEventListener('canplay', hideBuffering);
+
+    function buildQualityOpts() {
+        qualityOptsEl.innerHTML = '';
+        var autoBtn = document.createElement('div');
+        autoBtn.className = 'settings-list-item active';
+        autoBtn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Auto';
+        autoBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            hls.currentLevel = -1;
+            updateListActive('quality-opts', autoBtn, 'lbl-quality', 'Auto');
+            haptic(6);
+            showUI(true);
+        });
+        qualityOptsEl.appendChild(autoBtn);
+        hls.levels.slice().reverse().forEach(function (level, ri) {
+            var i = hls.levels.length - 1 - ri;
+            var btn = document.createElement('div');
+            var txt = level.height ? level.height + 'p' : 'Level ' + (i + 1);
+            btn.className = 'settings-list-item';
+            btn.innerHTML = '<i class="fa-regular fa-circle"></i> ' + txt;
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                hls.currentLevel = i;
+                updateListActive('quality-opts', btn, 'lbl-quality', txt);
+                haptic(6);
+                showUI(true);
+            });
+            qualityOptsEl.appendChild(btn);
+        });
+    }
 
     if (Hls.isSupported()) {
         var hls = new Hls({
@@ -722,34 +771,33 @@ function play(raw) {
         initThumbSeek(src);
         hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            buildQualityOpts();
+        });
+        hls.on(Hls.Events.LEVEL_LOADED, function () {
+            if (!isNaN(v.duration) && v.duration > 0) {
+                clearTimeout(retryTimer);
+                retryCount = maxRetries;
+            }
+        });
+        v.addEventListener('loadedmetadata', function () {
             onReady();
-            qualityOptsEl.innerHTML = '';
-            var autoBtn = document.createElement('div');
-            autoBtn.className = 'settings-list-item active';
-            autoBtn.innerHTML = '<i class="fa-regular fa-circle-dot"></i> Auto';
-            autoBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                hls.currentLevel = -1;
-                updateListActive('quality-opts', autoBtn, 'lbl-quality', 'Auto');
-                haptic(6);
-                showUI(true);
-            });
-            qualityOptsEl.appendChild(autoBtn);
-            hls.levels.slice().reverse().forEach(function (level, ri) {
-                var i = hls.levels.length - 1 - ri;
-                var btn = document.createElement('div');
-                var txt = level.height ? level.height + 'p' : 'Level ' + (i + 1);
-                btn.className = 'settings-list-item';
-                btn.innerHTML = '<i class="fa-regular fa-circle"></i> ' + txt;
-                btn.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    hls.currentLevel = i;
-                    updateListActive('quality-opts', btn, 'lbl-quality', txt);
-                    haptic(6);
-                    showUI(true);
-                });
-                qualityOptsEl.appendChild(btn);
-            });
+            startDurationPoll();
+        });
+        v.addEventListener('canplay', function () {
+            if (isNaN(v.duration) || v.duration === 0) return;
+            clearTimeout(retryTimer);
+            retryCount = maxRetries;
+            tDur.textContent = fmt(v.duration);
+            restoreTimestamp();
+        });
+        hls.on(Hls.Events.ERROR, function (event, data) {
+            if (data.fatal) {
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                    hls.startLoad();
+                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                    hls.recoverMediaError();
+                }
+            }
         });
     } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = src;
@@ -760,6 +808,12 @@ function play(raw) {
                 loaderBottomGlow.classList.add('video-playing');
             }
             onReady();
+            startDurationPoll();
+        });
+        v.addEventListener('canplay', function () {
+            if (isNaN(v.duration) || v.duration === 0) return;
+            tDur.textContent = fmt(v.duration);
+            restoreTimestamp();
         });
     }
 
