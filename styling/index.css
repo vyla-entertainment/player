@@ -1566,6 +1566,52 @@ video.ready {
     }
 }
 
+.settings-list-item:has(input[type="range"]) {
+    justify-content: space-between;
+}
+
+#btn-reset-video {
+    justify-content: center;
+    color: var(--white-92);
+    background-color: var(--white-08);
+}
+
+.sub-customize-title {
+    padding: 0 26px;
+}
+
+.settings-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 140px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--white-22);
+    outline: none;
+    cursor: pointer;
+}
+
+.settings-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--white);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.settings-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--white);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
 #subtitle-display {
     position: absolute;
     left: 0;

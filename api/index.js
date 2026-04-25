@@ -86,6 +86,8 @@ function rewriteM3u8(body, url) {
                 ? origin + t
                 : dir + t;
 
+        if (/\.(ts|m4s|mp4)(\?|$)/i.test(abs)) return abs;
+
         return '/api?url=' + encodeURIComponent(abs);
     }).join('\n');
 }
