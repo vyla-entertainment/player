@@ -19,6 +19,10 @@ app.all('/api', (req, res) => {
     apiHandler(req, res);
 });
 
+app.all('/api/proxy', (req, res) => {
+    apiHandler(req, res);
+});
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });

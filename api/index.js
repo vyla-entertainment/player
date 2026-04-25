@@ -55,16 +55,43 @@ async function getStream(id, s, e) {
     return json?.stream?.playlist || null;
 }
 
-function fetchUpstream(url, redirects = 0) {
+async function getStreamVyla(id, s, e) {
+    const endpoint = s
+        ? `https://vidzee-scraper.pages.dev/api/stream?id=${id}&type=tv&season=${s}&episode=${e || 1}`
+        : `https://vidzee-scraper.pages.dev/api/stream?id=${id}&type=movie`;
+
+    const res = await fetch(endpoint, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://player.vidzee.wtf',
+            'Origin': 'https://player.vidzee.wtf'
+        }
+    });
+
+    if (!res.ok) throw new Error(`VidZee ${res.status}`);
+
+    const text = await res.text();
+    const trimmed = text.trim();
+
+    if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        throw new Error('vidzee no stream');
+    }
+
+    return { m3u8: trimmed, sourceUrl: endpoint };
+}
+
+function fetchUpstream(url, redirects = 0, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
         if (redirects > 5) return reject(new Error('redirect loop'));
 
         (url.startsWith('https') ? https : http).get(url, {
-            headers: { Referer: REFERER, Origin: ORIGIN, 'User-Agent': UA }
+            headers: { Referer: REFERER, Origin: ORIGIN, 'User-Agent': UA, ...extraHeaders }
         }, res => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                 const next = new URL(res.headers.location, url).href;
-                return resolve(fetchUpstream(next, redirects + 1));
+                return resolve(fetchUpstream(next, redirects + 1, extraHeaders));
             }
             resolve(res);
         }).on('error', reject);
@@ -88,17 +115,18 @@ function rewriteM3u8(body, url) {
 
         if (/\.(ts|m4s|mp4)(\?|$)/i.test(abs)) return abs;
 
-        return '/api?url=' + encodeURIComponent(abs);
+        return '/api/proxy?url=' + encodeURIComponent(abs);
     }).join('\n');
 }
 
-async function proxy(url, res) {
-    const upstream = await fetchUpstream(url);
+async function proxy(url, res, extraHeaders = {}) {
+    const upstream = await fetchUpstream(url, 0, extraHeaders);
     const ct = (upstream.headers['content-type'] || '').toLowerCase();
 
     const isVideo = ct.includes('video/') || /\.(ts|mp4|m4s)(\?|$)/i.test(url);
 
-    if (isVideo) {
+    const isVidZee = extraHeaders.Referer?.includes('vidzee.wtf');
+    if (isVideo && !isVidZee) {
         res.writeHead(302, { 'Location': url });
         return res.end();
     }
@@ -109,9 +137,13 @@ async function proxy(url, res) {
         for await (const c of upstream) chunks.push(c);
         const body = Buffer.concat(chunks).toString('utf8');
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
         return res.end(rewriteM3u8(body, url));
     }
 
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
     upstream.pipe(res);
 }
 
@@ -176,28 +208,57 @@ module.exports = async (req, res) => {
         }
     }
 
-    if (q.url) {
+    if (q.tmdb_movie) {
         try {
-            return await proxy(decodeURIComponent(q.url), res);
+            const k = process.env.TMDB_API_KEY;
+            if (!k) { res.statusCode = 500; return res.end(JSON.stringify({ error: 'no key' })); }
+            const r = await fetch(`https://api.themoviedb.org/3/movie/${q.id}?api_key=${k}`);
+            const d = await r.json();
+            res.setHeader('Content-Type', 'application/json');
+            return res.end(JSON.stringify(d));
+        } catch (err) {
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    if (q.url || q.proxy) {
+        try {
+            const targetUrl = q.url || q.proxy;
+            const extraHeaders = q.vz ? {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150 Safari/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://player.vidzee.wtf',
+                'Origin': 'https://player.vidzee.wtf'
+            } : {};
+            return await proxy(decodeURIComponent(targetUrl), res, extraHeaders);
         } catch (e) {
             res.statusCode = 502;
             return res.end(e.message);
         }
     }
 
-    if (!q.id) {
+    if (!q.id && !q.tmdb_season && !q.tmdb_show) {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: 'missing id' }));
     }
 
     try {
-        const [url, meta] = await Promise.all([
-            getStream(q.id, q.s, q.e),
+        const [primaryUrl, meta] = await Promise.all([
+            getStream(q.id, q.s, q.e).catch(() => null),
             getMetadata(q.id, q.s, q.e)
         ]);
 
-        if (!url) throw new Error('no stream');
-
+        let url, vylaHeaders, vidzeeM3u8, vidzeeSourceUrl;
+        if (primaryUrl) {
+            url = primaryUrl;
+        } else {
+            const vyla = await getStreamVyla(q.id, q.s, q.e);
+            vidzeeM3u8 = vyla.m3u8;
+            vidzeeSourceUrl = vyla.sourceUrl;
+        }
+        if (!primaryUrl && !vidzeeM3u8) throw new Error('no stream');
         if (req.headers.accept?.includes('text/html')) {
             const title = (meta?.title || meta?.name || 'Watch') + (q.s ? ` S${q.s}E${q.e || 1}` : '');
             const img = 'https://image.tmdb.org/t/p/w780' + (meta?.still_path || meta?.backdrop_path || meta?.poster_path);
@@ -209,6 +270,22 @@ module.exports = async (req, res) => {
 <meta property="og:description" content="${meta?.overview || ''}">
 <meta property="og:image" content="${img}">
 </head></html>`);
+        }
+
+        res.setHeader('Content-Type', 'application/json');
+        if (vidzeeM3u8) {
+            const base = vidzeeSourceUrl.substring(0, vidzeeSourceUrl.lastIndexOf('/') + 1);
+            const rewritten = vidzeeM3u8.split('\n').map(line => {
+                const t = line.trim();
+                if (!t || t.startsWith('#')) return line;
+                let abs;
+                try { abs = new URL(t, base).toString(); } catch { return line; }
+                return '/api/proxy?url=' + encodeURIComponent(abs) + '&vz=1';
+            }).join('\n');
+
+            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            return res.end(rewritten);
         }
 
         res.setHeader('Content-Type', 'application/json');

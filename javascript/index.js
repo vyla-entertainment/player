@@ -65,39 +65,82 @@ function showNowPlayingToast(title) {
     setTimeout(function () {
         toast.classList.add('enter');
         setTimeout(function () {
-            toast.classList.remove('enter');
             toast.classList.add('exit');
         }, 3800);
     }, 4500);
 }
 
 if (id) {
-    fetch('/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id))
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-            if (d.error || !d.url) {
-                document.getElementById('error-screen').classList.add('show');
-                return;
+    var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+    fetch(apiUrl)
+        .then(function (r) {
+            var ct = r.headers.get('Content-Type') || '';
+            if (ct.includes('application/json')) {
+                return r.json().then(function (d) {
+                    if (d.error || !d.url) {
+                        throw new Error(d.error || 'no url');
+                    }
+                    return { type: 'json', data: d };
+                });
+            } else if (ct.includes('mpegurl') || ct.includes('m3u8')) {
+                return { type: 'm3u8', url: apiUrl };
+            } else {
+                throw new Error('unexpected content type');
             }
+        })
+        .then(function (result) {
             shouldHideLoader = true;
             hideLoader();
-            play(d.url);
-            var title = 'Unknown';
-            if (d.meta) {
-                var m = d.meta;
-                title = (m.title || m.name || 'Unknown');
-                if ('mediaSession' in navigator) {
-                    var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
-                    navigator.mediaSession.metadata = new MediaMetadata({
-                        title: title,
-                        artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
-                    });
+            if (result.type === 'json') {
+                play(result.data.url, false, id);
+                var title = 'Unknown';
+                if (result.data.meta) {
+                    var m = result.data.meta;
+                    title = (m.title || m.name || 'Unknown');
+                    if ('mediaSession' in navigator) {
+                        var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
+                        navigator.mediaSession.metadata = new MediaMetadata({
+                            title: title,
+                            artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
+                        });
+                    }
                 }
+                if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                document.title = title;
+                document.getElementById('title-text').textContent = title;
+                showNowPlayingToast(title);
+            } else if (result.type === 'm3u8') {
+                var tmdbKey = '338a47b75eab45d9e64e67088f910f93';
+                var tmdbUrl = 'https://api.themoviedb.org/3/movie/' + id + '?api_key=' + tmdbKey;
+
+                fetch(tmdbUrl)
+                    .then(function (mr) {
+                        if (!mr.ok) {
+                            throw new Error('TMDB fetch failed: ' + mr.status);
+                        }
+                        return mr.json();
+                    })
+                    .then(function (meta) {
+                        if (meta.success === false) {
+                            throw new Error(meta.status_message);
+                        }
+                        var title = (meta.title || meta.name || 'Unknown');
+                        if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                        document.title = title;
+                        document.getElementById('title-text').textContent = title;
+                        showNowPlayingToast(title);
+                        if ('mediaSession' in navigator) {
+                            var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
+                            navigator.mediaSession.metadata = new MediaMetadata({
+                                title: title,
+                                artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
+                            });
+                        }
+                    })
+                    .catch(function (err) {
+                    });
+                play(result.url, true, id);
             }
-            if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-            document.title = title;
-            document.getElementById('title-text').textContent = title;
-            showNowPlayingToast(title);
         }).catch(function () {
             document.getElementById('error-screen').classList.add('show');
         });
@@ -210,8 +253,8 @@ function fetchSubWithFallback(sub) {
     });
 }
 
-function play(raw) {
-    var src = '/api?url=' + encodeURIComponent(raw);
+function play(raw, skipProxy, videoId) {
+    var src = skipProxy || raw.startsWith('/api') ? raw : '/api?url=' + encodeURIComponent(raw);
     var v = document.getElementById('v');
     var controlsWrapper = document.getElementById('player-controls-wrapper');
     var titleBar = document.getElementById('title-bar');
@@ -1200,7 +1243,7 @@ function play(raw) {
     function restoreTimestamp() {
         if (timestampRestored) return;
 
-        var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+        var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
         var savedTime = getTimestamp(videoKey);
 
         if (savedTime > 5 && v.duration > savedTime + 5) {
@@ -1240,7 +1283,7 @@ function play(raw) {
         syncIcon();
         showUI(true);
         clearTimeout(hideTimer);
-        var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+        var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
         saveTimestamp(videoKey, v.currentTime);
     });
 
@@ -1248,7 +1291,7 @@ function play(raw) {
     v.addEventListener('timeupdate', function () {
         var now = Date.now();
         if (now - lastSaveTime > 5000) {
-            var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+            var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
             saveTimestamp(videoKey, v.currentTime);
             lastSaveTime = now;
         }
@@ -1256,7 +1299,7 @@ function play(raw) {
 
     if (s) {
         v.addEventListener('ended', function () {
-            var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
+            var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
             clearTimestamp(videoKey);
 
             var nextE = parseInt(e || '1') + 1;
