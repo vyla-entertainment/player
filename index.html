@@ -117,6 +117,49 @@
 
                             <div class="settings-menu-group">
                                 <div class="settings-menu-header">
+                                    <div class="smh-left"><i class="fa-solid fa-video"></i> Video</div>
+                                    <div class="smh-right"><span class="smh-label" id="lbl-video">Default</span> <i
+                                            class="fa-solid fa-chevron-right chevron"></i></div>
+                                </div>
+                                <div class="settings-menu-content">
+                                    <div class="settings-content-inner">
+                                        <div class="settings-list">
+                                            <div class="settings-list-item">
+                                                <span>Brightness</span>
+                                                <input type="range" id="vid-brightness" class="settings-range" min="0"
+                                                    max="200" value="100">
+                                            </div>
+                                            <div class="settings-list-item">
+                                                <span>Contrast</span>
+                                                <input type="range" id="vid-contrast" class="settings-range" min="0"
+                                                    max="200" value="100">
+                                            </div>
+                                            <div class="settings-list-item">
+                                                <span>Saturation</span>
+                                                <input type="range" id="vid-saturate" class="settings-range" min="0"
+                                                    max="200" value="100">
+                                            </div>
+                                        </div>
+                                        <div class="sub-customize-title">Aspect Ratio</div>
+                                        <div class="settings-list" id="ratio-opts">
+                                            <div class="settings-list-item active" data-ratio="contain"><i
+                                                    class="fa-regular fa-circle-dot"></i> Fit</div>
+                                            <div class="settings-list-item" data-ratio="cover"><i
+                                                    class="fa-regular fa-circle"></i> Fill</div>
+                                            <div class="settings-list-item" data-ratio="fill"><i
+                                                    class="fa-regular fa-circle"></i> Stretch</div>
+                                        </div>
+                                        <div class="settings-list">
+                                            <div class="settings-list-item" id="btn-reset-video">
+                                                <i class="fa-solid fa-rotate-left"></i> Reset to Default
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-menu-group">
+                                <div class="settings-menu-header">
                                     <div class="smh-left"><i class="fa-solid fa-sliders"></i> Quality</div>
                                     <div class="smh-right"><span class="smh-label" id="lbl-quality">Auto</span> <i
                                             class="fa-solid fa-chevron-right chevron"></i></div>
