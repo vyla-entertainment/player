@@ -397,7 +397,8 @@ function play(raw) {
         clickedEl.classList.add('active');
         var clickedIcon = clickedEl.querySelector('i');
         if (clickedIcon) clickedIcon.className = 'fa-regular fa-circle-dot';
-        document.getElementById(labelId).textContent = labelText;
+        var labelEl = document.getElementById(labelId);
+        if (labelEl) labelEl.textContent = labelText;
     }
 
     function showUI(pin) {
@@ -651,9 +652,10 @@ function play(raw) {
 
     function scheduleRetry() {
         if (retryCount >= maxRetries) return;
-        var delay = retryCount === 0 ? 1800 : 3000;
+        var delay = retryCount === 0 ? 6000 : 8000;
         retryTimer = setTimeout(function () {
             if (!isNaN(v.duration) && v.duration > 0) return;
+            if (v.readyState >= 2) return;
             retryCount++;
             showBuffering();
             var endpoint = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
@@ -715,6 +717,8 @@ function play(raw) {
     v.addEventListener('playing', hideBuffering);
     v.addEventListener('canplay', hideBuffering);
 
+    var isAutoQuality = true;
+
     function buildQualityOpts() {
         qualityOptsEl.innerHTML = '';
         var autoBtn = document.createElement('div');
@@ -723,7 +727,9 @@ function play(raw) {
         autoBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             hls.currentLevel = -1;
-            updateListActive('quality-opts', autoBtn, 'lbl-quality', 'Auto');
+            isAutoQuality = true;
+            updateQualityLabel();
+            updateListActive('quality-opts', autoBtn, 'lbl-quality', getQualityLabelText());
             haptic(6);
             showUI(true);
         });
@@ -737,6 +743,7 @@ function play(raw) {
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 hls.currentLevel = i;
+                isAutoQuality = false;
                 updateListActive('quality-opts', btn, 'lbl-quality', txt);
                 haptic(6);
                 showUI(true);
@@ -745,33 +752,58 @@ function play(raw) {
         });
     }
 
+    function getQualityLabelText() {
+        if (!isAutoQuality) {
+            var currentLevel = hls.levels[hls.currentLevel];
+            if (currentLevel && currentLevel.height) {
+                return currentLevel.height + 'p';
+            }
+            return 'Unknown';
+        }
+        var currentLevel = hls.levels[hls.currentLevel];
+        if (currentLevel && currentLevel.height) {
+            return 'Auto (' + currentLevel.height + 'p)';
+        }
+        return 'Auto';
+    }
+
+    function updateQualityLabel() {
+        var lbl = document.getElementById('lbl-quality');
+        if (lbl) lbl.textContent = getQualityLabelText();
+    }
+
     if (Hls.isSupported()) {
         var hls = new Hls({
             startLevel: 0,
-            maxBufferLength: 12,
-            maxMaxBufferLength: 20,
-            maxBufferSize: 20 * 1000 * 1000,
-            backBufferLength: 4,
-            maxBufferHole: 0.3,
-            frontBufferFlushThreshold: 10,
-            abrEwmaDefaultEstimate: 1500000,
-            abrBandWidthFactor: 0.7,
-            abrBandWidthUpFactor: 0.6,
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
+            maxBufferSize: 60 * 1000 * 1000,
+            backBufferLength: 10,
+            maxBufferHole: 0.5,
+            frontBufferFlushThreshold: 30,
+            abrEwmaDefaultEstimate: 3000000,
+            abrBandWidthFactor: 0.75,
+            abrBandWidthUpFactor: 0.7,
             abrEwmaFastLive: 3,
             abrEwmaSlowLive: 9,
-            testBandwidth: true,
-            highBufferWatchdogPeriod: 1,
+            highBufferWatchdogPeriod: 2,
             nudgeMaxRetry: 5,
             nudgeOffset: 0.2,
             fragLoadingTimeOut: 20000,
             manifestLoadingTimeOut: 20000,
             levelLoadingTimeOut: 20000,
+            testBandwidth: true,
         });
         hls.loadSource(src);
-        initThumbSeek(src);
+        setTimeout(function () { initThumbSeek(src); }, 8000);
         hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
             buildQualityOpts();
+        });
+        hls.on(Hls.Events.LEVEL_SWITCHED, function () {
+            if (isAutoQuality) {
+                updateQualityLabel();
+            }
         });
         hls.on(Hls.Events.LEVEL_LOADED, function () {
             if (!isNaN(v.duration) && v.duration > 0) {
@@ -801,7 +833,7 @@ function play(raw) {
         });
     } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = src;
-        initThumbSeek(src);
+        setTimeout(function () { initThumbSeek(src); }, 8000);
         v.addEventListener('loadedmetadata', function () {
             var loaderBottomGlow = document.querySelector('.loader-bottom-glow');
             if (loaderBottomGlow) {
@@ -833,59 +865,45 @@ function play(raw) {
     subtitleOptsEl.innerHTML = '<div class="sub-skeleton"><div class="sub-skel-item"></div><div class="sub-skel-item"></div><div class="sub-skel-item"></div></div>';
     document.getElementById('lbl-subtitle').textContent = 'Loading...';
 
-    document.getElementById('player-controls-wrapper').addEventListener('click', function (e) {
-        e.stopPropagation();
-    });
-
-    fetch(vylaEndpoint)
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-            if (!d.subtitles || !d.subtitles.length) return [];
-            return d.subtitles.map(function (sub) {
-                return { label: sub.label, format: sub.format || detectFormat(sub.url, null), url: sub.url };
-            });
-        })
-        .catch(function (err) {
-            return [];
-        })
-        .then(function (allSubs) {
-            if (!allSubs.length) {
-                document.getElementById('lbl-subtitle').textContent = 'Off';
-                subtitleOptsEl.innerHTML = '<div class="settings-list-item" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;"><i class="fa-solid fa-circle-exclamation"></i> None available</div>';
-                return;
-            }
-
-
-            var tests = allSubs.map(function (sub) {
-                return fetchSubWithFallback(sub).catch(function (err) {
-                    return null;
+    setTimeout(function () {
+        fetch(vylaEndpoint)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.subtitles || !d.subtitles.length) return [];
+                return d.subtitles.map(function (sub) {
+                    return { label: sub.label, format: sub.format || detectFormat(sub.url, null), url: sub.url };
                 });
-            });
-
-            Promise.all(tests).then(function (results) {
-                var seen = {};
-                var passed = results.filter(Boolean).filter(function (r) {
-                    var fingerprint = r.cues.slice(0, 3).map(function (c) { return c.start + ':' + c.text.slice(0, 20); }).join('|');
-                    if (seen[fingerprint]) {
-                        return false;
-                    }
-                    seen[fingerprint] = true;
-                    return true;
-                });
-
-                document.getElementById('lbl-subtitle').textContent = 'Off';
-
-                if (!passed.length) {
+            })
+            .catch(function () { return []; })
+            .then(function (allSubs) {
+                if (!allSubs.length) {
+                    document.getElementById('lbl-subtitle').textContent = 'Off';
                     subtitleOptsEl.innerHTML = '<div class="settings-list-item" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;"><i class="fa-solid fa-circle-exclamation"></i> None available</div>';
                     return;
                 }
-
-                buildSubtitleOpts(passed);
+                var tests = allSubs.map(function (sub) {
+                    return fetchSubWithFallback(sub).catch(function () { return null; });
+                });
+                Promise.all(tests).then(function (results) {
+                    var seen = {};
+                    var passed = results.filter(Boolean).filter(function (r) {
+                        var fingerprint = r.cues.slice(0, 3).map(function (c) { return c.start + ':' + c.text.slice(0, 20); }).join('|');
+                        if (seen[fingerprint]) return false;
+                        seen[fingerprint] = true;
+                        return true;
+                    });
+                    document.getElementById('lbl-subtitle').textContent = 'Off';
+                    if (!passed.length) {
+                        subtitleOptsEl.innerHTML = '<div class="settings-list-item" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;"><i class="fa-solid fa-circle-exclamation"></i> None available</div>';
+                        return;
+                    }
+                    buildSubtitleOpts(passed);
+                });
+            })
+            .catch(function () {
+                document.getElementById('lbl-subtitle').textContent = 'Off';
             });
-        })
-        .catch(function (err) {
-            document.getElementById('lbl-subtitle').textContent = 'Off';
-        });
+    }, 5000);
 
     function buildSubtitleOpts(results) {
         subtitleOptsEl.innerHTML = '';
@@ -978,6 +996,7 @@ function play(raw) {
             e.stopPropagation();
             videoState[key] = this.value;
             applyVideoStyles();
+            updateVideoLabel();
         });
     });
 
@@ -991,6 +1010,33 @@ function play(raw) {
             haptic(6);
         });
     });
+
+    var btnResetVideo = document.getElementById('btn-reset-video');
+    if (btnResetVideo) {
+        btnResetVideo.addEventListener('click', function (e) {
+            e.stopPropagation();
+            videoState.brightness = 100;
+            videoState.contrast = 100;
+            videoState.saturate = 100;
+            videoState.ratio = 'contain';
+            applyVideoStyles();
+            updateVideoLabel();
+            var el;
+            el = document.getElementById('vid-brightness'); if (el) el.value = 100;
+            el = document.getElementById('vid-contrast'); if (el) el.value = 100;
+            el = document.getElementById('vid-saturate'); if (el) el.value = 100;
+            var fitBtn = document.querySelector('.settings-list-item[data-ratio="contain"]');
+            if (fitBtn) updateListActive('ratio-opts', fitBtn, 'lbl-ratio', 'Fit');
+            haptic(6);
+        });
+    }
+
+    function updateVideoLabel() {
+        var lbl = document.getElementById('lbl-video');
+        if (!lbl) return;
+        var isDefault = videoState.brightness == 100 && videoState.contrast == 100 && videoState.saturate == 100 && videoState.ratio === 'contain';
+        lbl.textContent = isDefault ? 'Default' : 'Custom';
+    }
 
     document.addEventListener('click', function (e) {
         if (!e.isTrusted) return;
@@ -1277,28 +1323,28 @@ function play(raw) {
         var nextE = parseInt(e || '1') + 1;
         var nextS = parseInt(s);
 
-        fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                if (d.error || !d.url) {
-                    return fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
-                        .then(function (r) { return r.json(); })
-                        .then(function (d2) {
-                            if (d2.error || !d2.url) return;
-
-                            var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
-                            nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
-                            nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
-                            nextEpReady = true;
-                        });
-                }
-
-                var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-                nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
-                nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
-                nextEpReady = true;
-            })
-            .catch(function () { });
+        setTimeout(function () {
+            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.error || !d.url) {
+                        return fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                            .then(function (r) { return r.json(); })
+                            .then(function (d2) {
+                                if (d2.error || !d2.url) return;
+                                var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
+                                nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
+                                nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                                nextEpReady = true;
+                            });
+                    }
+                    var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                    nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
+                    nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+                    nextEpReady = true;
+                })
+                .catch(function () { });
+        }, 10000);
 
         nextEpInner.addEventListener('click', function () {
             if (nextEpHref) location.href = nextEpHref;
