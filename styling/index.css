@@ -1612,6 +1612,29 @@ video.ready {
     box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
+.source-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px 12px;
+}
+
+.source-skel-item {
+    height: 42px;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--white-06) 25%, var(--white-08) 50%, var(--white-06) 75%);
+    background-size: 200% 100%;
+    animation: skelShimmer 1.4s ease infinite;
+}
+
+.source-skel-item:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.source-skel-item:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
 #subtitle-display {
     position: absolute;
     left: 0;

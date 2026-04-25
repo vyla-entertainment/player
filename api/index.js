@@ -37,6 +37,7 @@ function bootWasm() {
 
 async function getStream(id, s, e) {
     await bootWasm();
+    bootWasm().catch(() => { });
     await new Promise(r => setTimeout(r, 1000 + Math.random() * 1000));
 
     const token = globalThis.getAdv(String(id));
@@ -217,6 +218,57 @@ module.exports = async (req, res) => {
         } catch (err) {
             res.statusCode = 500;
             return res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    if (q.sources) {
+        try {
+            const [primaryUrl, vyla] = await Promise.all([
+                getStream(q.id, q.s, q.e).catch(() => null),
+                getStreamVyla(q.id, q.s, q.e).catch(() => null)
+            ]);
+
+            const sources = [];
+
+            if (primaryUrl) {
+                sources.push({ label: 'Source 1', url: primaryUrl });
+            }
+
+            if (vyla?.m3u8) {
+                const base = vyla.sourceUrl.substring(0, vyla.sourceUrl.lastIndexOf('/') + 1);
+                const rewritten = vyla.m3u8.split('\n').map(line => {
+                    const t = line.trim();
+                    if (!t || t.startsWith('#')) return line;
+                    let abs;
+                    try { abs = new URL(t, base).toString(); } catch { return line; }
+                    return '/api?url=' + encodeURIComponent(abs) + '&vz=1';
+                }).join('\n');
+                const encoded = Buffer.from(rewritten).toString('base64');
+                sources.push({ label: primaryUrl ? 'Source 2' : 'Source 1', url: '/api?vyla_inline=' + encodeURIComponent(encoded) });
+            }
+
+            if (!sources.length) {
+                res.statusCode = 502;
+                return res.end(JSON.stringify({ error: 'no sources' }));
+            }
+
+            res.setHeader('Content-Type', 'application/json');
+            return res.end(JSON.stringify({ sources }));
+        } catch (err) {
+            res.statusCode = 500;
+            return res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    if (q.vyla_inline) {
+        try {
+            const decoded = Buffer.from(decodeURIComponent(q.vyla_inline), 'base64').toString('utf8');
+            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            return res.end(decoded);
+        } catch (err) {
+            res.statusCode = 500;
+            return res.end('decode error');
         }
     }
 

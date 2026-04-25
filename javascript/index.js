@@ -269,8 +269,6 @@ function play(raw, skipProxy, videoId) {
     var ci = document.getElementById('ci');
     var skipL = document.getElementById('skip-left');
     var skipR = document.getElementById('skip-right');
-    var skipLLbl = document.getElementById('skip-left-lbl');
-    var skipRLbl = document.getElementById('skip-right-lbl');
     var tapL = document.getElementById('tap-left');
     var tapR = document.getElementById('tap-right');
     var btnPip = document.getElementById('btn-pip');
@@ -280,6 +278,9 @@ function play(raw, skipProxy, videoId) {
     var speedOpts = document.querySelectorAll('.settings-list-item[data-speed]');
     var qualityOptsEl = document.getElementById('quality-opts');
     var subtitleOptsEl = document.getElementById('subtitle-opts');
+    var sourceOptsEl = document.getElementById('source-opts');
+    var btnTryNextSource = document.getElementById('btn-try-next-source');
+    var btnSource = document.getElementById('btn-source');
     var subCustomize = document.getElementById('sub-customize');
     var subFontSelect = document.getElementById('sub-font-select');
     var subSizeSelect = document.getElementById('sub-size-select');
@@ -1106,6 +1107,129 @@ function play(raw, skipProxy, videoId) {
             showUI(true);
         });
     });
+
+    function buildSourceOpts() {
+        sourceOptsEl.innerHTML = '';
+        sources.forEach(function (source, i) {
+            var btn = document.createElement('div');
+            var isActive = i === currentSourceIndex;
+            btn.className = 'settings-list-item' + (isActive ? ' active' : '');
+            btn.innerHTML = '<i class="' + (isActive ? 'fa-regular fa-circle-dot' : 'fa-regular fa-circle') + '"></i> ' + (source.label || 'Source ' + (i + 1));
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (i === currentSourceIndex) return;
+                currentSourceIndex = i;
+                switchSource(source.url);
+                buildSourceOpts();
+                var lbl = document.getElementById('lbl-source');
+                if (lbl) lbl.textContent = source.label || 'Source ' + (i + 1);
+                haptic(6);
+                showUI(true);
+            });
+            sourceOptsEl.appendChild(btn);
+        });
+        var lbl = document.getElementById('lbl-source');
+        if (lbl && sources[currentSourceIndex]) {
+            lbl.textContent = sources[currentSourceIndex].label || 'Source ' + (currentSourceIndex + 1);
+        }
+        if (btnTryNextSource) btnTryNextSource.style.display = 'none';
+    }
+
+    function setSourceLoading() {
+        sourceOptsEl.innerHTML = '<div class="source-skeleton"><div class="source-skel-item"></div><div class="source-skel-item"></div></div>';
+        var lbl = document.getElementById('lbl-source');
+        if (lbl) lbl.textContent = 'Loading...';
+    }
+
+    var sources = [];
+    var currentSourceIndex = 0;
+
+    function fetchSources() {
+        setSourceLoading();
+        var endpoint = s
+            ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
+            : '/api?sources=1&id=' + id;
+        fetch(endpoint)
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (d) {
+                if (!d.sources || !d.sources.length) {
+                    console.warn('[sources] empty response', d);
+                    sourceOptsEl.innerHTML = '<div class="settings-list-item" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;"><i class="fa-solid fa-circle-exclamation"></i> None available</div>';
+                    var lbl = document.getElementById('lbl-source');
+                    if (lbl) lbl.textContent = 'None';
+                    return;
+                }
+                sources = d.sources;
+                var playingUrl = src;
+                currentSourceIndex = 0;
+                for (var i = 0; i < sources.length; i++) {
+                    var sUrl = sources[i].url;
+                    if (sUrl && playingUrl && (
+                        playingUrl.includes(encodeURIComponent(sUrl.split('?')[0])) ||
+                        sUrl === playingUrl ||
+                        (playingUrl.startsWith('/api?vyla_inline') && sUrl.startsWith('/api?vyla_inline'))
+                    )) {
+                        currentSourceIndex = i;
+                        break;
+                    }
+                }
+                console.log('[sources] loaded', sources, 'active index:', currentSourceIndex);
+                buildSourceOpts();
+            })
+            .catch(function (err) {
+                console.error('[sources] fetch failed', err);
+                sourceOptsEl.innerHTML = '<div class="settings-list-item" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;"><i class="fa-solid fa-circle-exclamation"></i> Failed to load</div>';
+                var lbl = document.getElementById('lbl-source');
+                if (lbl) lbl.textContent = 'Error';
+            });
+    }
+
+    if (btnTryNextSource) {
+        btnTryNextSource.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (!sources.length) {
+                haptic(6);
+                showUI(true);
+                return;
+            }
+            currentSourceIndex = (currentSourceIndex + 1) % sources.length;
+            var next = sources[currentSourceIndex];
+            switchSource(next.url);
+            buildSourceOpts();
+            haptic(10);
+            showUI(true);
+        });
+    }
+
+    function switchSource(url) {
+        var newSrc = url.startsWith('/api') ? url : '/api?url=' + encodeURIComponent(url);
+        var wasPlaying = !v.paused;
+        var savedTime = v.currentTime;
+        showBuffering();
+        if (Hls.isSupported() && typeof hls !== 'undefined') {
+            hls.stopLoad();
+            hls.detachMedia();
+            hls.loadSource(newSrc);
+            hls.attachMedia(v);
+            hls.once(Hls.Events.MANIFEST_PARSED, function () {
+                v.currentTime = savedTime;
+                if (wasPlaying) v.play();
+            });
+        } else {
+            v.src = newSrc;
+            v.load();
+            v.addEventListener('loadedmetadata', function onMeta() {
+                v.removeEventListener('loadedmetadata', onMeta);
+                v.currentTime = savedTime;
+                if (wasPlaying) v.play();
+            });
+        }
+    }
+
+    fetchSources();
 
     function bindControl(el, key, isColor) {
         if (!el) return;
