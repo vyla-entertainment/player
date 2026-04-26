@@ -1031,8 +1031,9 @@ video.ready {
     width: 100%;
     cursor: pointer;
     position: relative;
-    padding: 24px 0;
-    min-height: 56px;
+    padding: 20px 0;
+    min-height: 52px;
+    touch-action: none;
 }
 
 #player:not(.ui-on) {
@@ -1048,23 +1049,24 @@ video.ready {
     height: var(--track-h);
     border-radius: var(--track-radius);
     background: var(--white-22);
-    transition: height 0.22s var(--ease-smooth), transform 0.22s var(--ease-smooth);
+    overflow: visible;
+    transition: height 0.2s var(--ease-smooth);
+    will-change: height;
 }
 
 #track-wrap:hover #track,
 #track.drag {
     height: var(--track-h-hover);
-    transform: scale(1.02);
 }
 
 #buf {
     position: absolute;
     inset: 0 auto 0 0;
     width: 0%;
-    background: var(--white-33);
+    background: rgba(255,255,255,0.38);
     border-radius: var(--track-radius);
     pointer-events: none;
-    transition: width 0.5s ease-out;
+    transition: width 0.25s linear;
 }
 
 #prog {
@@ -1075,6 +1077,7 @@ video.ready {
     border-radius: var(--track-radius);
     pointer-events: none;
     transition: none;
+    will-change: width;
 }
 
 #thumb {
@@ -1087,18 +1090,14 @@ video.ready {
     border-radius: 50%;
     transform: translate(-50%, -50%) scale(0);
     pointer-events: none;
-    transition: transform 0.22s var(--ease-smooth);
-    will-change: transform
+    transition: transform 0.18s var(--ease-smooth);
+    will-change: transform, left;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 
 #track-wrap:hover #thumb,
 #track.drag #thumb {
-    transform: translate(-50%, -50%) scale(1.15);
-}
-
-#track-wrap:hover #thumb,
-#track.drag #thumb {
-    transform: translate(-50%, -50%) scale(1)
+    transform: translate(-50%, -50%) scale(1);
 }
 
 #time-row {

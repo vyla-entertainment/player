@@ -364,7 +364,6 @@ function play(raw, skipProxy, videoId) {
         contrast: 100,
         saturate: 100,
         ratio: 'contain',
-        orientation: 'off'
     };
 
     var subPosMap = { top: '82%', high: '35%', mid: '12%', low: '6%', bottom: '2%' };
@@ -372,14 +371,11 @@ function play(raw, skipProxy, videoId) {
     var subSpacingMap = { tight: '-0.5px', normal: '0px', wide: '1px', extra: '2px' };
 
     var savedSpeed = (function () {
-        try { return parseFloat(localStorage.getItem('playbackSpeed')) || 1; } catch (err) { return 1; }
+        try {
+            var r = parseFloat(localStorage.getItem('playbackSpeed'));
+            return (!isNaN(r) && r > 0 && r <= 2) ? r : 1;
+        } catch (err) { return 1; }
     })();
-
-    var savedOrientation = (function () {
-        try { return localStorage.getItem('screenOrientation') || 'off'; } catch (err) { return 'off'; }
-    })();
-
-    videoState.orientation = savedOrientation;
 
     function saveTimestamp(videoId, currentTime) {
         try {
@@ -448,23 +444,6 @@ function play(raw, skipProxy, videoId) {
         v.style.objectFit = videoState.ratio;
     }
 
-    function lockOrientation(orientation) {
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock(orientation).catch(function (err) {
-                if (err.name !== 'NotSupportedError') {
-                }
-            });
-            return true;
-        }
-        return false;
-    }
-
-    function unlockOrientation() {
-        if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-        }
-    }
-
     function isIOS() {
         return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     }
@@ -483,50 +462,6 @@ function play(raw, skipProxy, videoId) {
             }, duration || 3000);
         }
     }
-
-    function applyOrientation() {
-        var orientationLabel = document.getElementById('lbl-orientation');
-        var labelMap = { 'off': 'Off', 'landscape': 'Landscape', 'portrait': 'Portrait' };
-
-        if (orientationLabel) {
-            orientationLabel.textContent = labelMap[videoState.orientation] || 'Off';
-        }
-
-        var orientationOpts = document.querySelectorAll('.settings-list-item[data-orientation]');
-        orientationOpts.forEach(function (opt) {
-            opt.classList.remove('active');
-            var icon = opt.querySelector('i');
-            if (icon) icon.className = 'fa-regular fa-circle';
-        });
-        var activeOpt = document.querySelector('.settings-list-item[data-orientation="' + videoState.orientation + '"]');
-        if (activeOpt) {
-            activeOpt.classList.add('active');
-            var activeIcon = activeOpt.querySelector('i');
-            if (activeIcon) activeIcon.className = 'fa-regular fa-circle-dot';
-        }
-
-        if (videoState.orientation === 'off') {
-            try { screen.orientation.unlock(); } catch (ex) { }
-        } else if (videoState.orientation === 'landscape') {
-            try {
-                screen.orientation.lock('landscape').catch(function () { });
-            } catch (ex) { }
-        } else if (videoState.orientation === 'portrait') {
-            try {
-                screen.orientation.lock('portrait').catch(function () { });
-            } catch (ex) { }
-        }
-
-        try { localStorage.setItem('screenOrientation', videoState.orientation); } catch (ex) { }
-    }
-
-    applyOrientation();
-
-    screen.orientation && screen.orientation.addEventListener('change', function () {
-        if (videoState.orientation !== 'off') return;
-        var isLandscape = screen.orientation.type.includes('landscape');
-        document.getElementById('v').style.objectFit = isLandscape ? 'contain' : 'contain';
-    });
 
     if (subFontSelect) subFontSelect.value = subState.font;
     if (subSizeSelect) subSizeSelect.value = subState.size;
@@ -587,23 +522,39 @@ function play(raw, skipProxy, videoId) {
         ci.classList.add('pop');
     }
 
+    var _progRaf = null;
     function setProg() {
         if (!v.duration || dragging) return;
-        var pct = v.currentTime / v.duration * 100;
-        prog.style.width = pct + '%';
-        thumb.style.left = pct + '%';
-        tCur.textContent = fmt(v.currentTime);
-        tDur.textContent = fmt(v.duration);
-        if (v.buffered.length)
-            bufEl.style.width = (v.buffered.end(v.buffered.length - 1) / v.duration * 100) + '%';
+        if (_progRaf) return;
+        _progRaf = requestAnimationFrame(function () {
+            _progRaf = null;
+            if (!v.duration || dragging) return;
+            var pct = v.currentTime / v.duration * 100;
+            prog.style.width = pct + '%';
+            thumb.style.left = 'calc(' + pct + '% - ' + (pct / 100 * 0) + 'px)';
+            tCur.textContent = fmt(v.currentTime);
+            tDur.textContent = fmt(v.duration);
+            if (v.buffered.length) {
+                var bufEnd = 0;
+                for (var bi = 0; bi < v.buffered.length; bi++) {
+                    if (v.buffered.start(bi) <= v.currentTime + 1) {
+                        bufEnd = Math.max(bufEnd, v.buffered.end(bi));
+                    }
+                }
+                bufEl.style.width = (bufEnd / v.duration * 100) + '%';
+            }
+        });
     }
 
+    var _seekRaf = null;
+    var _seekPct = 0;
     function seekX(x) {
         var r = wrap.getBoundingClientRect();
-        var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+        _seekPct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+        var pct = _seekPct;
         prog.style.width = (pct * 100) + '%';
         thumb.style.left = (pct * 100) + '%';
-        tCur.textContent = fmt((pct) * (v.duration || 0));
+        tCur.textContent = fmt(pct * (v.duration || 0));
         if (!dragging) {
             v.currentTime = pct * (v.duration || 0);
         }
@@ -611,7 +562,7 @@ function play(raw, skipProxy, videoId) {
 
     function commitSeek(x) {
         var r = wrap.getBoundingClientRect();
-        var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
+        var pct = (x !== undefined) ? Math.max(0, Math.min(1, (x - r.left) / r.width)) : _seekPct;
         v.currentTime = pct * (v.duration || 0);
     }
 
@@ -627,7 +578,9 @@ function play(raw, skipProxy, videoId) {
         var r = wrap.getBoundingClientRect();
         var pct = Math.max(0, Math.min(1, (x - r.left) / r.width));
         var t = pct * v.duration;
-        tooltip.style.left = (pct * r.width) + 'px';
+        var thumbHalf = 8;
+        var tipLeft = Math.max(thumbHalf, Math.min(r.width - thumbHalf, pct * r.width));
+        tooltip.style.left = tipLeft + 'px';
         tooltipTime.textContent = fmt(t);
         tooltip.classList.add('show');
         lastTooltipPct = pct;
@@ -694,7 +647,14 @@ function play(raw, skipProxy, videoId) {
 
     function onReady() {
         v.classList.add('ready');
-        if (savedSpeed !== 1) v.playbackRate = savedSpeed;
+        v.playbackRate = savedSpeed;
+        var onRateGuard = function () {
+            if (Math.abs(v.playbackRate - savedSpeed) > 0.01) {
+                v.playbackRate = savedSpeed;
+            }
+        };
+        v.addEventListener('ratechange', onRateGuard);
+        setTimeout(function () { v.removeEventListener('ratechange', onRateGuard); }, 3000);
         tDur.textContent = fmt(v.duration);
         var loaderBottomGlow = document.querySelector('.loader-bottom-glow');
         if (loaderBottomGlow) loaderBottomGlow.classList.add('video-playing');
@@ -1180,16 +1140,6 @@ function play(raw, skipProxy, videoId) {
         });
     });
 
-    var orientationOpts = document.querySelectorAll('.settings-list-item[data-orientation]');
-    orientationOpts.forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            videoState.orientation = this.dataset.orientation;
-            applyOrientation();
-            haptic(6);
-        });
-    });
-
     var btnResetVideo = document.getElementById('btn-reset-video');
     if (btnResetVideo) {
         btnResetVideo.addEventListener('click', function (e) {
@@ -1222,6 +1172,7 @@ function play(raw, skipProxy, videoId) {
             e.stopPropagation();
             var rate = parseFloat(this.dataset.speed);
             v.playbackRate = rate;
+            savedSpeed = rate;
             try { localStorage.setItem('playbackSpeed', rate); } catch (err) { }
             updateListActive('speed-opts', this, 'lbl-speed', this.textContent.trim());
             haptic(6);
@@ -1449,6 +1400,7 @@ function play(raw, skipProxy, videoId) {
     });
     wrap.addEventListener('touchstart', function (e) {
         e.stopPropagation();
+        clearTimeout(_speedBoostTimer);
         dragging = true;
         trackEl.classList.add('drag');
         seekX(e.touches[0].clientX);
@@ -1464,19 +1416,16 @@ function play(raw, skipProxy, videoId) {
         showSeekTooltip(e.touches[0].clientX);
     }, { passive: false });
 
-    wrap.addEventListener('touchend', function () {
+    wrap.addEventListener('touchend', function (e) {
+        if (!dragging) return;
+        var x = e.changedTouches ? e.changedTouches[0].clientX : undefined;
+        if (x !== undefined) { seekX(x); commitSeek(x); }
+        dragging = false;
+        trackEl.classList.remove('drag', 'hover');
         tooltip.classList.remove('show');
+        if (!v.paused) showUI();
     });
 
-    function showSeekTooltip(clientX) {
-        if (!v.duration) return;
-        var r = wrap.getBoundingClientRect();
-        var pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-        tooltip.style.left = (pct * r.width) + 'px';
-        tooltipTime.textContent = fmt(pct * v.duration);
-        tooltip.classList.add('show');
-    }
-    
     var lastDragX = 0;
     function endDrag(e) {
         if (!dragging) return;
@@ -1487,10 +1436,22 @@ function play(raw, skipProxy, videoId) {
         tooltip.classList.remove('show');
         if (!v.paused) showUI();
     }
-    document.addEventListener('mousemove', function (e) { if (dragging) { lastDragX = e.clientX; seekX(e.clientX); } });
-    document.addEventListener('touchmove', function (e) { if (dragging) { lastDragX = e.touches[0].clientX; seekX(e.touches[0].clientX); } }, { passive: true });
+    document.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        lastDragX = e.clientX;
+        seekX(e.clientX);
+        hoverTooltip(e.clientX);
+    });
+    document.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        lastDragX = e.touches[0].clientX;
+        seekX(e.touches[0].clientX);
+        showSeekTooltip(e.touches[0].clientX);
+    }, { passive: true });
     document.addEventListener('mouseup', endDrag);
-    document.addEventListener('touchend', endDrag);
+    document.addEventListener('touchend', function (e) {
+        if (dragging) endDrag(e);
+    });
 
     document.addEventListener('keydown', function (e) {
         if (e.key === 'ArrowLeft') { doSkip('left', 1); showUI(); }
@@ -2068,6 +2029,8 @@ function play(raw, skipProxy, videoId) {
     });
 
     var isPressing = false;
+    var _boostDidActivate = false;
+    var _wasPausedBeforeBoost = false;
     var originalPlaybackSpeed = 1;
     var playerEl = document.getElementById('player');
 
@@ -2077,7 +2040,10 @@ function play(raw, skipProxy, videoId) {
     function startSpeedBoost() {
         if (isPressing) return;
         isPressing = true;
-        originalPlaybackSpeed = v.playbackRate;
+        _boostDidActivate = true;
+        _wasPausedBeforeBoost = v.paused;
+        originalPlaybackSpeed = savedSpeed;
+        if (v.paused) v.play().catch(function () { });
         v.playbackRate = 2;
         playerEl.style.cursor = 'grabbing';
         var badge = document.getElementById('speed-boost-badge');
@@ -2101,6 +2067,7 @@ function play(raw, skipProxy, videoId) {
         if (!isPressing) return;
         isPressing = false;
         v.playbackRate = originalPlaybackSpeed;
+        if (_wasPausedBeforeBoost) v.pause();
         playerEl.style.cursor = '';
         var badge = document.getElementById('speed-boost-badge');
         if (badge) badge.style.opacity = '0';
@@ -2111,20 +2078,37 @@ function play(raw, skipProxy, videoId) {
         if (settingsPanel && settingsPanel.contains(e.target)) return;
         if (btnSettings.contains(e.target)) return;
         if (e.button !== 0) return;
+        _boostDidActivate = false;
         _speedBoostTimer = setTimeout(function () { startSpeedBoost(); }, 600);
     });
 
-    playerEl.addEventListener('mouseup', endSpeedBoost);
+    playerEl.addEventListener('mouseup', function (e) {
+        endSpeedBoost();
+    });
     playerEl.addEventListener('mouseleave', endSpeedBoost);
+
+    playerEl.addEventListener('click', function (e) {
+        if (_boostDidActivate) {
+            _boostDidActivate = false;
+            e.stopImmediatePropagation();
+            return;
+        }
+    }, true);
 
     playerEl.addEventListener('touchstart', function (e) {
         if (controlsWrapper.contains(e.target)) return;
         if (settingsPanel && settingsPanel.contains(e.target)) return;
         if (btnSettings.contains(e.target)) return;
-        _speedBoostTimer = setTimeout(function () { startSpeedBoost(); }, 600);
+        if (wrap.contains(e.target)) return;
+        _boostDidActivate = false;
+        _speedBoostTimer = setTimeout(function () {
+            if (!dragging) startSpeedBoost();
+        }, 600);
     }, { passive: true });
 
-    playerEl.addEventListener('touchend', endSpeedBoost);
+    playerEl.addEventListener('touchend', function (e) {
+        endSpeedBoost();
+    });
 
     (function () {
         if (window.innerWidth > 768) return;
