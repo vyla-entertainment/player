@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
-const apiHandler = require('./api/index.js');
+const apiHandler = require('./api/backend.js');
 
 const app = express();
 const port = process.env.PORT || 7860;

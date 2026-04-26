@@ -10,27 +10,20 @@
 
     <div id="loader">
         <video id="loader-bg-video" autoplay muted loop playsinline></video>
-        <div class="loader-aurora">
-            <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <filter id="lf1">
-                        <feGaussianBlur stdDeviation="58" />
-                    </filter>
-                    <filter id="lf2">
-                        <feGaussianBlur stdDeviation="72" />
-                    </filter>
-                    <filter id="lf3">
-                        <feGaussianBlur stdDeviation="62" />
-                    </filter>
-                </defs>
-            </svg>
-        </div>
     </div>
 
     <div id="player">
         <video id="v" playsinline></video>
 
-        <div id="title-bar"><span id="title-text"></span></div>
+        <div id="title-bar">
+            <span id="title-text"></span>
+            <div id="source-title-wrap" style="display:none;position:relative;align-self:flex-start;">
+                <span id="source-sub-label"
+                    style="font-size:11px;font-weight:600;color:var(--white-45);letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;">SOURCE:
+                    1 <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i></span>
+                <div id="source-dropdown" class="source-dropdown"></div>
+            </div>
+        </div>
 
         <div id="tap-left" class="tap-zone"></div>
         <div id="tap-right" class="tap-zone"></div>
@@ -179,23 +172,6 @@
 
                             <div class="settings-menu-group">
                                 <div class="settings-menu-header">
-                                    <div class="smh-left"><i class="fa-solid fa-globe"></i> Source</div>
-                                    <div class="smh-right"><span class="smh-label" id="lbl-source">Source 1</span> <i
-                                            class="fa-solid fa-chevron-right chevron"></i></div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list" id="source-opts">
-                                            <div class="settings-list-item active" id="btn-try-next-source">
-                                                <i class="fa-solid fa-circle-dot"></i> Try Next Source
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-header">
                                     <div class="smh-left"><i class="fa-solid fa-closed-captioning"></i> Subtitles</div>
                                     <div class="smh-right"><span class="smh-label" id="lbl-subtitle">Off</span> <i
                                             class="fa-solid fa-chevron-right chevron"></i></div>
@@ -300,6 +276,7 @@
 
         <div id="error-screen">
             <div class="err-text">Source Not Found</div>
+            <button class="err-retry" id="err-retry-btn"><i class="fa-solid fa-rotate-right"></i> Try Again</button>
         </div>
 
         <div id="subtitle-display"><span id="subtitle-text"></span></div>
@@ -318,7 +295,7 @@
         </div>
     </div>
 
-    <div id="next-ep-btn" style="display:none;">
+    <div id="next-ep-btn">
         <div id="next-ep-inner">
             <span id="next-ep-label">Next Episode</span>
             <i class="fa-solid fa-arrow-right"></i>
