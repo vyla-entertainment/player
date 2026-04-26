@@ -34,9 +34,9 @@
     --menu-radius: 10px;
     --menu-min-width: 90px;
     --ctrl-size: 36px;
-    --thumb-size: 14px;
-    --track-h: 4px;
-    --track-h-hover: 6px;
+    --thumb-size: 16px;
+    --track-h: 5px;
+    --track-h-hover: 8px;
     --track-radius: 3px;
     --skip-icon-size: 28px;
     --flash-icon-size: 60px;
@@ -153,7 +153,9 @@ video {
     object-fit: cover;
     display: block;
     opacity: 1;
-    transition: opacity 1s var(--ease-out)
+    transition: opacity 1s var(--ease-out);
+    position: relative;
+    z-index: 0;
 }
 
 video.ready {
@@ -202,9 +204,11 @@ video.ready {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 50%;
+    width: 25%;
     z-index: 5;
-    cursor: pointer
+    cursor: pointer;
+    pointer-events: none;
+    transition: background 0.2s ease
 }
 
 #tap-left {
@@ -218,7 +222,7 @@ video.ready {
 .skip-pill {
     position: absolute;
     top: 50%;
-    transform: translateY(-50%) translateY(-28px);
+    transform: translateY(-50%);
     pointer-events: none;
     z-index: 20;
     opacity: 0;
@@ -226,11 +230,11 @@ video.ready {
 }
 
 #skip-left {
-    left: 9%
+    left: 12.5%
 }
 
 #skip-right {
-    right: 9%
+    right: 12.5%
 }
 
 .skip-pill .skip-inner {
@@ -312,6 +316,13 @@ video.ready {
         opacity: 0;
         transform: scale(1.12)
     }
+}
+
+#settings-panel.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(0.9);
+    z-index: 99999;
 }
 
 #buffering-spinner {
@@ -993,72 +1004,67 @@ video.ready {
     position: absolute;
     bottom: calc(100% + 10px);
     transform: translateX(-50%);
-    background: transparent;
+    background: rgba(0, 0, 0, 0.75);
     color: var(--white);
-    font-size: var(--tooltip-size);
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.12s ease;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
     z-index: 50;
+    padding: 4px 10px;
+    border-radius: 6px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 #tooltip.show {
     opacity: 1;
 }
 
-#tooltip-canvas {
-    display: block;
-    width: 160px;
-    height: 90px;
-    border-radius: 6px;
-    overflow: hidden;
-    background: #111;
-    image-rendering: auto;
-}
-
-#tooltip-time {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--white-92);
-    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
-    letter-spacing: 0.04em;
-}
-
 #track-wrap {
     width: 100%;
-    padding: 12px 0;
     cursor: pointer;
-    position: relative
+    position: relative;
+    padding: 24px 0;
+    min-height: 56px;
+}
+
+#player:not(.ui-on) {
+    cursor: none;
+}
+
+#player.ui-on {
+    cursor: default;
 }
 
 #track {
     position: relative;
     height: var(--track-h);
     border-radius: var(--track-radius);
-    background: var(--white-18);
-    transition: height 0.28s var(--ease-smooth)
+    background: var(--white-22);
+    transition: height 0.22s var(--ease-smooth), transform 0.22s var(--ease-smooth);
 }
 
 #track-wrap:hover #track,
 #track.drag {
-    height: var(--track-h-hover)
+    height: var(--track-h-hover);
+    transform: scale(1.02);
 }
 
 #buf {
     position: absolute;
     inset: 0 auto 0 0;
     width: 0%;
-    background: var(--white-22);
+    background: var(--white-33);
     border-radius: var(--track-radius);
     pointer-events: none;
-    transition: width 0.5s ease-out
+    transition: width 0.5s ease-out;
 }
 
 #prog {
@@ -1068,7 +1074,7 @@ video.ready {
     background: var(--white);
     border-radius: var(--track-radius);
     pointer-events: none;
-    transition: width 0.1s linear
+    transition: none;
 }
 
 #thumb {
@@ -1081,9 +1087,14 @@ video.ready {
     border-radius: 50%;
     transform: translate(-50%, -50%) scale(0);
     pointer-events: none;
-    transition: transform 0.28s var(--ease-smooth), box-shadow 0.28s ease;
-    box-shadow: 0 0 8px var(--black-55);
+    transition: transform 0.22s var(--ease-smooth), box-shadow 0.22s ease;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
     will-change: transform
+}
+
+#track-wrap:hover #thumb,
+#track.drag #thumb {
+    transform: translate(-50%, -50%) scale(1.15);
 }
 
 #track-wrap:hover #thumb,
@@ -1264,11 +1275,6 @@ video.ready {
 #settings-panel::-webkit-scrollbar-thumb {
     background: var(--white-22);
     border-radius: 3px;
-}
-
-#settings-panel.open {
-    opacity: 1;
-    pointer-events: auto;
 }
 
 .settings-menu-group {
@@ -1513,7 +1519,13 @@ video.ready {
             left: 0;
             right: 0;
             max-height: 75vh;
-            scale: 1;
+        }
+
+        #settings-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+            z-index: 99999;
         }
     }
 
@@ -1534,10 +1546,6 @@ video.ready {
         background: var(--white-22);
         border-radius: 2px;
         margin: 12px auto 0;
-    }
-
-    #settings-panel.open {
-        transform: translateY(0);
     }
 
     #settings-panel.dragging {
@@ -1745,4 +1753,13 @@ video.ready {
 
 #next-ep-inner:active {
     transform: scale(0.96);
+}
+
+.skip-pill span {
+    transition: none !important;
+}
+
+.skip-pill.active-tap {
+    opacity: 1 !important;
+    transform: translateY(-50%) !important;
 }
