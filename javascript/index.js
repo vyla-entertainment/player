@@ -601,7 +601,6 @@ function play(raw, skipProxy, videoId) {
         var delta = dir === 'left' ? -secs : secs;
         v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + delta));
 
-        // Show next ep button immediately if skipping to last 5 minutes
         if (nextEpReady && v.duration && v.duration >= 60) {
             var remaining = v.duration - v.currentTime;
             nextEpBtn.style.display = '';
