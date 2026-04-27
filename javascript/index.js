@@ -37,6 +37,15 @@ function hideLoader() {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'F' || e.key === 'f') {
         var player = document.getElementById('player');
+        var v = document.getElementById('v');
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+            if (v && v.webkitDisplayingFullscreen) {
+                v.webkitExitFullscreen();
+            } else if (v) {
+                v.webkitEnterFullscreen();
+            }
+            return;
+        }
         var fsElement = document.fullscreenElement ||
             document.webkitFullscreenElement ||
             document.mozFullScreenElement ||
@@ -1413,15 +1422,26 @@ function play(raw, skipProxy, videoId) {
         function updateFsIcon() {
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
                 document.mozFullScreenElement || document.msFullscreenElement;
-            fsIcon.className = fsEl ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+            var iosFs = isIOS() && v.webkitDisplayingFullscreen;
+            fsIcon.className = (fsEl || iosFs) ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
         }
         document.addEventListener('fullscreenchange', updateFsIcon);
         document.addEventListener('webkitfullscreenchange', updateFsIcon);
         document.addEventListener('mozfullscreenchange', updateFsIcon);
         document.addEventListener('MSFullscreenChange', updateFsIcon);
+        v.addEventListener('webkitbeginfullscreen', updateFsIcon);
+        v.addEventListener('webkitendfullscreen', updateFsIcon);
         btnFullscreen.addEventListener('click', function (e) {
             e.stopPropagation();
             haptic(10);
+            if (isIOS()) {
+                if (v.webkitDisplayingFullscreen) {
+                    v.webkitExitFullscreen();
+                } else {
+                    v.webkitEnterFullscreen();
+                }
+                return;
+            }
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
                 document.mozFullScreenElement || document.msFullscreenElement;
             if (fsEl) {
@@ -1526,6 +1546,14 @@ function play(raw, skipProxy, videoId) {
         if (e.key === 'ArrowRight') { doSkip('right', 1); showUI(); }
         if (e.key === ' ' || e.key === 'k' || e.key === 'K') { e.preventDefault(); haptic(10); v.paused ? v.play() : v.pause(); }
         if (e.key === 'f' || e.key === 'F') {
+            if (isIOS()) {
+                if (v.webkitDisplayingFullscreen) {
+                    v.webkitExitFullscreen();
+                } else {
+                    v.webkitEnterFullscreen();
+                }
+                return;
+            }
             var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
             var player = document.getElementById('player');
             if (fsEl) {
