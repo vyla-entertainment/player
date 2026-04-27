@@ -1316,8 +1316,8 @@ function play(raw, skipProxy, videoId) {
 
     function fetchSources() {
         if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
-        if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'SOURCE: 1 <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-        sourceListEl.innerHTML = '';
+        if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING... <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+        sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Loading...</span></div></div>';
         var endpoint = s
             ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
             : '/api?sources=1&id=' + id;
