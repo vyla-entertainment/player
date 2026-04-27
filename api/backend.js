@@ -56,25 +56,26 @@ async function getStream(id, s, e) {
     return json?.stream?.playlist || null;
 }
 
-async function getStreamIcefy(id, s, e) {
-    const cdn = 'https://abc-cdn4-optestre.icefy.top';
+async function getStreamIcefyCDN(id, s, e, base) {
     const endpoint = s
-        ? `${cdn}/tv/${id}/${s}/${e || 1}`
-        : `${cdn}/movie/${id}`;
+        ? `${base}/tv/${id}/${s}/${e || 1}`
+        : `${base}/movie/${id}`;
 
     const res = await fetch(endpoint, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': 'https://icefy.top',
-            'Origin': 'https://icefy.top'
-        }
+        headers: { 'User-Agent': UA, 'Referer': 'https://icefy.top', 'Origin': 'https://icefy.top' }
     });
 
-    if (!res.ok) throw new Error(`icefy ${res.status}`);
+    if (!res.ok) throw new Error(`cdn ${res.status}`);
     const json = await res.json();
-    if (!json?.stream) throw new Error('icefy no stream');
+    if (!json?.stream) throw new Error('no stream');
     return json.stream;
 }
+
+const ICEFY_HEADERS = {
+    'User-Agent': UA,
+    'Referer': 'https://icefy.top',
+    'Origin': 'https://icefy.top'
+};
 
 function fetchUpstream(url, redirects = 0, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
@@ -92,22 +93,26 @@ function fetchUpstream(url, redirects = 0, extraHeaders = {}) {
     });
 }
 
-function rewriteM3u8(body, url) {
+function rewriteM3u8(body, url, extraParam = '') {
     const base = url.split('?')[0];
     const dir = base.slice(0, base.lastIndexOf('/') + 1);
     const origin = new URL(url).origin;
 
     return body.split('\n').map(line => {
         const t = line.trim();
-        if (!t || t.startsWith('#')) return line;
+        if (!t) return line;
 
-        const abs = t.startsWith('http')
-            ? t
-            : t.startsWith('/')
-                ? origin + t
-                : dir + t;
+        if (t.startsWith('#')) {
+            return t.replace(/URI="([^"]+)"/g, (match, uri) => {
+                const abs = uri.startsWith('http') ? uri : uri.startsWith('/') ? origin + uri : dir + uri;
+                if (abs.includes('tiktokcdn.com')) return `URI="${abs}"`;
+                return `URI="/api?url=${encodeURIComponent(abs)}${extraParam}"`;
+            });
+        }
 
-        return '/api?url=' + encodeURIComponent(abs);
+        const abs = t.startsWith('http') ? t : t.startsWith('/') ? origin + t : dir + t;
+        if (abs.includes('tiktokcdn.com') || abs.includes('p16-sg') || abs.includes('p19-sg')) return abs;
+        return '/api?url=' + encodeURIComponent(abs) + extraParam;
     }).join('\n');
 }
 
@@ -115,10 +120,7 @@ async function proxy(url, res, extraHeaders = {}) {
     const upstream = await fetchUpstream(url, 0, extraHeaders);
     const ct = (upstream.headers['content-type'] || '').toLowerCase();
 
-    const isVideo = ct.includes('video/') || /\.(ts|mp4|m4s)(\?|$)/i.test(url);
-
-    const isVidZee = extraHeaders.Referer?.includes('vidzee.wtf');
-    if (isVideo && !isVidZee) {
+    const isVideo = ct.includes('video/') || /\.(ts|mp4|m4s)(\?|$)/i.test(url) || url.includes('tiktokcdn.com'); if (isVideo) {
         res.writeHead(302, { 'Location': url });
         return res.end();
     }
@@ -130,7 +132,8 @@ async function proxy(url, res, extraHeaders = {}) {
         const body = Buffer.concat(chunks).toString('utf8');
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
         res.setHeader('Access-Control-Allow-Origin', '*');
-        return res.end(rewriteM3u8(body, url));
+        const isIcefy = url.includes('icefy.top') || url.includes('optestre');
+        return res.end(rewriteM3u8(body, url, isIcefy ? '&ix=1' : ''));
     }
 
     res.setHeader('Content-Type', ct || 'application/octet-stream');
@@ -142,26 +145,16 @@ async function proxy(url, res, extraHeaders = {}) {
 async function getMetadata(id, s, e) {
     try {
         const k = process.env.TMDB_API_KEY;
-
-        if (!k) {
-            return null;
-        }
+        if (!k) return null;
 
         const url = s
             ? `https://api.themoviedb.org/3/tv/${id}/season/${s}/episode/${e || 1}?api_key=${k}`
             : `https://api.themoviedb.org/3/movie/${id}?api_key=${k}`;
 
-
         const res = await fetch(url);
-
-        if (!res.ok) {
-            const errorText = await res.text();
-            return null;
-        }
-
-        const data = await res.json();
-        return data;
-    } catch (error) {
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
         return null;
     }
 }
@@ -214,17 +207,19 @@ module.exports = async (req, res) => {
         }
     }
 
-    if (q.sources) {
+    if ('sources' in q) {
         try {
-            const [primaryUrl, icefyUrl] = await Promise.all([
+            const [vidlinkUrl, xpassUrl, icefyUrl] = await Promise.all([
                 getStream(q.id, q.s, q.e).catch(() => null),
-                getStreamIcefy(q.id, q.s, q.e).catch(() => null)
+                getStreamIcefyCDN(q.id, q.s, q.e, 'https://streams.icefy.top').catch(() => null),
+                getStreamIcefyCDN(q.id, q.s, q.e, 'https://abc-cdn4-optestre.icefy.top').catch(() => null)
             ]);
 
             const sources = [];
-
-            if (primaryUrl) sources.push({ label: 'Source 1', url: primaryUrl });
-            if (icefyUrl) sources.push({ label: primaryUrl ? 'Source 2' : 'Source 1', url: icefyUrl });
+            if (xpassUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof xpassUrl === 'object' ? xpassUrl.url : xpassUrl) + '&ix=1' });
+            if (vidlinkUrl) sources.push({ url: typeof vidlinkUrl === 'object' ? vidlinkUrl.url : vidlinkUrl });
+            if (icefyUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof icefyUrl === 'object' ? icefyUrl.url : icefyUrl) + '&ix=1' });
+            sources.forEach((s, i) => s.label = 'Source: ' + (i + 1));
 
             if (!sources.length) {
                 res.statusCode = 502;
@@ -239,21 +234,10 @@ module.exports = async (req, res) => {
         }
     }
 
-    if (q.vyla_inline) {
-        try {
-            const decoded = Buffer.from(decodeURIComponent(q.vyla_inline), 'base64').toString('utf8');
-            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            return res.end(decoded);
-        } catch (err) {
-            res.statusCode = 500;
-            return res.end('decode error');
-        }
-    }
-
     if (q.url || q.proxy) {
         try {
-            return await proxy(decodeURIComponent(q.url || q.proxy), res, {});
+            const extraHeaders = q.ix ? ICEFY_HEADERS : {};
+            return await proxy(decodeURIComponent(q.url || q.proxy), res, extraHeaders);
         } catch (e) {
             res.statusCode = 502;
             return res.end(e.message);
@@ -271,18 +255,21 @@ module.exports = async (req, res) => {
             getMetadata(q.id, q.s, q.e)
         ]);
 
-        let url, vylaHeaders, vidzeeM3u8, vidzeeSourceUrl;
+        let url;
         if (primaryUrl) {
             url = primaryUrl;
         } else {
-            const icefy = await getStreamIcefy(q.id, q.s, q.e);
-            url = icefy;
+            url = await getStreamIcefyCDN(q.id, q.s, q.e, 'https://streams.icefy.top').catch(() => null)
+                || await getStreamIcefyCDN(q.id, q.s, q.e, 'https://abc-cdn4-optestre.icefy.top').catch(() => null);
         }
-        if (!primaryUrl && !url) throw new Error('no stream');
+        if (!url) throw new Error('no stream');
+
+        const isIcefy = url.includes('icefy.top') || url.includes('optestre');
+        const finalUrl = isIcefy ? '/api?url=' + encodeURIComponent(url) + '&ix=1' : url;
+
         if (req.headers.accept?.includes('text/html')) {
             const title = (meta?.title || meta?.name || 'Watch') + (q.s ? ` S${q.s}E${q.e || 1}` : '');
             const img = 'https://image.tmdb.org/t/p/w780' + (meta?.still_path || meta?.backdrop_path || meta?.poster_path);
-
             res.setHeader('Content-Type', 'text/html');
             return res.end(`<html><head>
 <title>${title}</title>
@@ -293,23 +280,7 @@ module.exports = async (req, res) => {
         }
 
         res.setHeader('Content-Type', 'application/json');
-        if (vidzeeM3u8) {
-            const base = vidzeeSourceUrl.substring(0, vidzeeSourceUrl.lastIndexOf('/') + 1);
-            const rewritten = vidzeeM3u8.split('\n').map(line => {
-                const t = line.trim();
-                if (!t || t.startsWith('#')) return line;
-                let abs;
-                try { abs = new URL(t, base).toString(); } catch { return line; }
-                return '/api/proxy?url=' + encodeURIComponent(abs) + '&vz=1';
-            }).join('\n');
-
-            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            return res.end(rewritten);
-        }
-
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ url, meta }));
+        res.end(JSON.stringify({ url: finalUrl, meta }));
     } catch (e) {
         res.statusCode = 500;
         res.end(JSON.stringify({ error: e.message }));

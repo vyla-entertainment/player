@@ -1299,7 +1299,7 @@ function play(raw, skipProxy, videoId) {
             item.className = 'ep-item' + (isActive ? ' current' : '');
             item.innerHTML =
                 '<div class="source-icon-wrap"><i class="fa-solid fa-' + (isActive ? 'circle-check' : 'circle') + '"></i></div>' +
-                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">' + (source.label || 'Source ' + (i + 1)) + '</span></div></div>' +
+                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">' + (source.label || 'Source: ' + (i + 1)) + '</span></div></div>' +
                 (isActive ? '<i class="fa-solid fa-check source-active-check"></i>' : '');
             if (!isActive) {
                 item.addEventListener('click', function () {
