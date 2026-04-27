@@ -56,31 +56,24 @@ async function getStream(id, s, e) {
     return json?.stream?.playlist || null;
 }
 
-async function getStreamVyla(id, s, e) {
+async function getStreamIcefy(id, s, e) {
+    const cdn = 'https://abc-cdn4-optestre.icefy.top';
     const endpoint = s
-        ? `https://vidzee-scraper.pages.dev/api/stream?id=${id}&type=tv&season=${s}&episode=${e || 1}`
-        : `https://vidzee-scraper.pages.dev/api/stream?id=${id}&type=movie`;
+        ? `${cdn}/tv/${id}/${s}/${e || 1}`
+        : `${cdn}/movie/${id}`;
 
     const res = await fetch(endpoint, {
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150 Safari/537.36',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://player.vidzee.wtf',
-            'Origin': 'https://player.vidzee.wtf'
+            'User-Agent': UA,
+            'Referer': 'https://icefy.top',
+            'Origin': 'https://icefy.top'
         }
     });
 
-    if (!res.ok) throw new Error(`VidZee ${res.status}`);
-
-    const text = await res.text();
-    const trimmed = text.trim();
-
-    if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[')) {
-        throw new Error('vidzee no stream');
-    }
-
-    return { m3u8: trimmed, sourceUrl: endpoint };
+    if (!res.ok) throw new Error(`icefy ${res.status}`);
+    const json = await res.json();
+    if (!json?.stream) throw new Error('icefy no stream');
+    return json.stream;
 }
 
 function fetchUpstream(url, redirects = 0, extraHeaders = {}) {
@@ -223,29 +216,15 @@ module.exports = async (req, res) => {
 
     if (q.sources) {
         try {
-            const [primaryUrl, vyla] = await Promise.all([
+            const [primaryUrl, icefyUrl] = await Promise.all([
                 getStream(q.id, q.s, q.e).catch(() => null),
-                getStreamVyla(q.id, q.s, q.e).catch(() => null)
+                getStreamIcefy(q.id, q.s, q.e).catch(() => null)
             ]);
 
             const sources = [];
 
-            if (primaryUrl) {
-                sources.push({ label: 'Source 1', url: primaryUrl });
-            }
-
-            if (vyla?.m3u8) {
-                const base = vyla.sourceUrl.substring(0, vyla.sourceUrl.lastIndexOf('/') + 1);
-                const rewritten = vyla.m3u8.split('\n').map(line => {
-                    const t = line.trim();
-                    if (!t || t.startsWith('#')) return line;
-                    let abs;
-                    try { abs = new URL(t, base).toString(); } catch { return line; }
-                    return '/api?url=' + encodeURIComponent(abs) + '&vz=1';
-                }).join('\n');
-                const encoded = Buffer.from(rewritten).toString('base64');
-                sources.push({ label: primaryUrl ? 'Source 2' : 'Source 1', url: '/api?vyla_inline=' + encodeURIComponent(encoded) });
-            }
+            if (primaryUrl) sources.push({ label: 'Source 1', url: primaryUrl });
+            if (icefyUrl) sources.push({ label: primaryUrl ? 'Source 2' : 'Source 1', url: icefyUrl });
 
             if (!sources.length) {
                 res.statusCode = 502;
@@ -274,15 +253,7 @@ module.exports = async (req, res) => {
 
     if (q.url || q.proxy) {
         try {
-            const targetUrl = q.url || q.proxy;
-            const extraHeaders = q.vz ? {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150 Safari/537.36',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://player.vidzee.wtf',
-                'Origin': 'https://player.vidzee.wtf'
-            } : {};
-            return await proxy(decodeURIComponent(targetUrl), res, extraHeaders);
+            return await proxy(decodeURIComponent(q.url || q.proxy), res, {});
         } catch (e) {
             res.statusCode = 502;
             return res.end(e.message);
@@ -304,11 +275,10 @@ module.exports = async (req, res) => {
         if (primaryUrl) {
             url = primaryUrl;
         } else {
-            const vyla = await getStreamVyla(q.id, q.s, q.e);
-            vidzeeM3u8 = vyla.m3u8;
-            vidzeeSourceUrl = vyla.sourceUrl;
+            const icefy = await getStreamIcefy(q.id, q.s, q.e);
+            url = icefy;
         }
-        if (!primaryUrl && !vidzeeM3u8) throw new Error('no stream');
+        if (!primaryUrl && !url) throw new Error('no stream');
         if (req.headers.accept?.includes('text/html')) {
             const title = (meta?.title || meta?.name || 'Watch') + (q.s ? ` S${q.s}E${q.e || 1}` : '');
             const img = 'https://image.tmdb.org/t/p/w780' + (meta?.still_path || meta?.backdrop_path || meta?.poster_path);
