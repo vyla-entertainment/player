@@ -1759,6 +1759,57 @@ video.ready {
     }
 }
 
+#skip-segment-btn {
+    position: fixed;
+    bottom: 80px;
+    left: 24px;
+    z-index: 9000;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+    display: block;
+}
+
+#skip-segment-btn.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+#skip-segment-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--black-50);
+    border: none;
+    color: var(--white-85);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 10px 18px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: transform 0.25s var(--ease-spring);
+}
+
+#skip-segment-inner:hover {
+    transform: scale(1.05);
+}
+
+#skip-segment-inner:active {
+    transform: scale(0.96);
+}
+
+#skip-segment-btn {
+    display: none;
+}
+
+#skip-segment-btn.show {
+    display: flex;
+}
+
 #next-ep-btn {
     position: fixed;
     bottom: 80px;

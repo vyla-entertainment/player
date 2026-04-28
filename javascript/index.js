@@ -56,7 +56,7 @@ document.addEventListener('keydown', function (e) {
 });
 
 var p = new URLSearchParams(location.search);
-var id = p.get('id'), s = p.get('s'), e = p.get('e'), ap = p.get('ap');
+var id = p.get('id'), s = p.get('s'), e = p.get('e'), ap = p.get('ap'), bluphim = p.get('bluphim');
 
 function showNowPlayingToast(title) {
     var toast = document.getElementById('now-playing-toast');
@@ -71,7 +71,7 @@ function showNowPlayingToast(title) {
 }
 
 if (id) {
-    var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+    var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id) + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
     fetch(apiUrl)
         .then(function (r) {
             var ct = r.headers.get('Content-Type') || '';
@@ -90,7 +90,12 @@ if (id) {
         })
         .then(function (result) {
             shouldHideLoader = true;
-            hideLoader();
+            setTimeout(function () {
+                if (shouldHideLoader) {
+                    shouldHideLoader = false;
+                    hideLoader();
+                }
+            }, 8000);
             if (result.type === 'json') {
                 play(result.data.url, false, id);
                 var title = 'Unknown';
@@ -108,7 +113,14 @@ if (id) {
                 if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
                 document.title = title;
                 document.getElementById('title-text').textContent = title;
-                showNowPlayingToast(title);
+                var _toastTitle = title;
+                var _toastFired = false;
+                var _origHideLoader = hideLoader;
+                hideLoader = function () {
+                    _origHideLoader();
+                    if (!_toastFired) { _toastFired = true; showNowPlayingToast(_toastTitle); }
+                    hideLoader = _origHideLoader;
+                };
             } else if (result.type === 'm3u8') {
                 var tmdbUrl = '/api?tmdb_movie=1&id=' + id;
 
@@ -127,7 +139,14 @@ if (id) {
                         if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
                         document.title = title;
                         document.getElementById('title-text').textContent = title;
-                        showNowPlayingToast(title);
+                        var _toastTitle2 = title;
+                        var _toastFired2 = false;
+                        var _origHideLoader2 = hideLoader;
+                        hideLoader = function () {
+                            _origHideLoader2();
+                            if (!_toastFired2) { _toastFired2 = true; showNowPlayingToast(_toastTitle2); }
+                            hideLoader = _origHideLoader2;
+                        };
                         if ('mediaSession' in navigator) {
                             var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
                             navigator.mediaSession.metadata = new MediaMetadata({
@@ -318,10 +337,10 @@ function play(raw, skipProxy, videoId) {
     var tapTimer = null;
     var tapCount = 0;
     var tapSide = null;
-    var skipTimers = { left: null, right: null };
     var dragging = false;
     var shown = false;
     var settingsOpen = false;
+    var _endedFired = false;
 
     var subFontMap = { sans: 'var(--font)', serif: 'Georgia, serif', mono: 'monospace' };
     var subSizeMap = { small: '14px', medium: '18px', large: '23px', xlarge: '28px', xxlarge: '34px' };
@@ -568,7 +587,7 @@ function play(raw, skipProxy, videoId) {
         if (nextEpReady && v.duration && v.duration >= 60) {
             var remaining = v.duration - v.currentTime;
             nextEpBtn.style.display = '';
-            if (remaining <= 300) {
+            if (remaining <= 60) {
                 nextEpBtn.classList.add('show');
             } else {
                 nextEpBtn.classList.remove('show');
@@ -604,7 +623,7 @@ function play(raw, skipProxy, videoId) {
         if (nextEpReady && v.duration && v.duration >= 60) {
             var remaining = v.duration - v.currentTime;
             nextEpBtn.style.display = '';
-            if (remaining <= 300) {
+            if (remaining <= 60) {
                 nextEpBtn.classList.add('show');
             } else {
                 nextEpBtn.classList.remove('show');
@@ -683,6 +702,12 @@ function play(raw, skipProxy, videoId) {
         scheduleRetry();
         attemptAutoplay();
         restoreVolume();
+        setTimeout(function () {
+            if (shouldHideLoader) {
+                shouldHideLoader = false;
+                hideLoader();
+            }
+        }, 2000);
     }
 
     var _autoplayUnlocked = false;
@@ -1201,6 +1226,7 @@ function play(raw, skipProxy, videoId) {
     });
 
     function switchSource(url) {
+        _endedFired = false;
         var newSrc = url.startsWith('/api') ? url : '/api?url=' + encodeURIComponent(url);
         var wasPlaying = !v.paused;
         var savedTime = v.currentTime;
@@ -1271,23 +1297,6 @@ function play(raw, skipProxy, videoId) {
         haptic(10);
     }
 
-    function closeSourcePanel() {
-        sourcePanelOpen = false;
-        sourceDropdown.classList.remove('open');
-        if (!v.paused) {
-            clearTimeout(hideTimer);
-            hideTimer = setTimeout(hideUI, 3200);
-        }
-    }
-
-    if (sourceBtnLabel) {
-        sourceBtnLabel.addEventListener('click', function (e) {
-            e.stopPropagation();
-            sourcePanelOpen ? closeSourcePanel() : openSourcePanel();
-            haptic(6);
-        });
-    }
-
     function buildSourceList() {
         sourceListEl.innerHTML = '';
         if (sourceBtnLabel) {
@@ -1314,13 +1323,22 @@ function play(raw, skipProxy, videoId) {
         });
     }
 
+    function closeSourcePanel() {
+        sourcePanelOpen = false;
+        sourceDropdown.classList.remove('open');
+        if (!v.paused) {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(hideUI, 3200);
+        }
+    }
+
     function fetchSources() {
         if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
         if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING... <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
         sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Loading...</span></div></div>';
-        var endpoint = s
+        var endpoint = (s
             ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
-            : '/api?sources=1&id=' + id;
+            : '/api?sources=1&id=' + id) + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
         fetch(endpoint)
             .then(function (r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1333,25 +1351,21 @@ function play(raw, skipProxy, videoId) {
                     return;
                 }
                 sources = d.sources;
-                var playingUrl = src;
                 currentSourceIndex = 0;
-                for (var i = 0; i < sources.length; i++) {
-                    var sUrl = sources[i].url;
-                    if (sUrl && playingUrl && (
-                        playingUrl.includes(encodeURIComponent(sUrl.split('?')[0])) ||
-                        sUrl === playingUrl ||
-                        (playingUrl.startsWith('/api?vyla_inline') && sUrl.startsWith('/api?vyla_inline'))
-                    )) {
-                        currentSourceIndex = i;
-                        break;
-                    }
-                }
                 buildSourceList();
             })
             .catch(function () {
                 if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'SOURCE: 1 <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
                 sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Failed to load</span></div></div>';
             });
+    }
+
+    if (sourceBtnLabel) {
+        sourceBtnLabel.addEventListener('click', function (e) {
+            e.stopPropagation();
+            sourcePanelOpen ? closeSourcePanel() : openSourcePanel();
+            haptic(6);
+        });
     }
 
     fetchSources();
@@ -1627,14 +1641,32 @@ function play(raw, skipProxy, videoId) {
     v.addEventListener('timeupdate', function () {
         var now = Date.now();
         if (now - lastSaveTime > 5000) {
-            var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
+            var videoKey = (s ? videoId + '_s' + s + '_e=' + (e || '1') : videoId);
             saveTimestamp(videoKey, v.currentTime);
             lastSaveTime = now;
         }
     });
 
+    v.addEventListener('timeupdate', function () {
+        if (v.currentTime > 0 && shouldHideLoader) {
+            shouldHideLoader = false;
+            hideLoader();
+        }
+    });
+
+    v.addEventListener('canplay', function () {
+        if (shouldHideLoader) {
+            shouldHideLoader = false;
+            hideLoader();
+        }
+    });
+
     if (s) {
         v.addEventListener('ended', function () {
+            if (_endedFired) return;
+            if (!v.duration || v.duration < 30) return;
+            if (v.currentTime < v.duration * 0.98) return;
+            _endedFired = true;
             var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
             clearTimestamp(videoKey);
 
@@ -1663,7 +1695,7 @@ function play(raw, skipProxy, videoId) {
                                         toast.classList.remove('enter');
                                         toast.classList.add('exit');
                                         setTimeout(function () {
-                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                                            location.href = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1' + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
                                         }, 800);
                                     }, 3800);
                                 }, 400);
@@ -1685,7 +1717,7 @@ function play(raw, skipProxy, videoId) {
                             toast.classList.remove('enter');
                             toast.classList.add('exit');
                             setTimeout(function () {
-                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+                                location.href = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1' + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
                             }, 800);
                         }, 3800);
                     }, 400);
@@ -1713,13 +1745,13 @@ function play(raw, skipProxy, videoId) {
                                 if (d2.error || !d2.url) return;
                                 var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
                                 nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
-                                nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1';
+                                nextEpHref = location.pathname + '?id=' + id + '&s=' + (nextS + 1) + '&e=1&ap=1' + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
                                 nextEpReady = true;
                             });
                     }
                     var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
                     nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
-                    nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1';
+                    nextEpHref = location.pathname + '?id=' + id + '&s=' + nextS + '&e=' + nextE + '&ap=1' + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
                     nextEpReady = true;
                 })
                 .catch(function () { });
@@ -1733,7 +1765,7 @@ function play(raw, skipProxy, videoId) {
             if (!nextEpReady || !v.duration || v.duration < 60) return;
             var remaining = v.duration - v.currentTime;
             nextEpBtn.style.display = '';
-            if (remaining <= 300) {
+            if (remaining <= 60) {
                 nextEpBtn.classList.add('show');
             } else {
                 nextEpBtn.classList.remove('show');
@@ -1742,11 +1774,107 @@ function play(raw, skipProxy, videoId) {
 
         v.addEventListener('durationchange', function () {
             if (!nextEpReady || !v.duration || v.duration < 60) return;
-            if (v.duration - v.currentTime <= 300) {
+            if (v.duration - v.currentTime <= 60) {
                 nextEpBtn.classList.add('show');
             }
         });
     }
+
+    (function () {
+        var introDbUrl = s
+            ? 'https://api.theintrodb.org/v2/media?tmdb_id=' + id + '&season=' + s + '&episode=' + (e || '1')
+            : 'https://api.theintrodb.org/v2/media?tmdb_id=' + id;
+        var skipSegments = {};
+        var skipBannerDismissed = {};
+        var currentShownKey = null;
+
+        var skipBtn = document.getElementById('skip-segment-btn');
+        var skipInner = document.getElementById('skip-segment-inner');
+        var skipLabel = document.getElementById('skip-segment-label');
+
+        function showBanner(key, label, endSec) {
+            if (currentShownKey === key) return;
+            currentShownKey = key;
+            skipLabel.textContent = label;
+            skipBtn.classList.add('show');
+            skipInner.onclick = function (ev) {
+                ev.stopPropagation();
+                if (endSec != null) v.currentTime = endSec;
+                skipBannerDismissed[key] = true;
+                hideBanner();
+                haptic(10);
+            };
+        }
+
+        function hideBanner() {
+            currentShownKey = null;
+            skipBtn.classList.remove('show');
+        }
+
+        fetch(introDbUrl)
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (d) {
+                console.log('[IntroDB] response for', introDbUrl, d);
+                function bestSegment(arr, name) {
+                    if (!arr || !arr.length) { console.log('[IntroDB]', name, 'no entries'); return null; }
+                    var qualified = arr.filter(function (seg) {
+                        var hasTime = seg.end_ms != null || seg.start_ms != null;
+                        if (!hasTime) return false;
+                        if (seg.confidence == null && seg.submission_count == null) return true;
+                        return (seg.confidence >= 0.6 && seg.submission_count >= 2)
+                            || seg.submission_count >= 3;
+                    });
+                    console.log('[IntroDB]', name, 'qualified:', qualified.length, 'of', arr.length);
+                    if (!qualified.length) return null;
+                    return qualified.sort(function (a, b) {
+                        var scoreA = (a.confidence || 0.5) * Math.log((a.submission_count || 1) + 1);
+                        var scoreB = (b.confidence || 0.5) * Math.log((b.submission_count || 1) + 1);
+                        return scoreB - scoreA;
+                    })[0];
+                }
+                skipSegments.intro = bestSegment(d.intro, 'intro');
+                skipSegments.recap = bestSegment(d.recap, 'recap');
+                skipSegments.credits = bestSegment(d.credits, 'credits');
+                skipSegments.preview = bestSegment(d.preview, 'preview');
+                console.log('[IntroDB] final segments:', JSON.stringify(skipSegments));
+            })
+            .catch(function (err) {
+                console.error('[IntroDB] fetch error:', err.message, 'url:', introDbUrl);
+            });
+
+        var SEGMENT_META = [
+            { key: 'recap', label: 'Skip Recap' },
+            { key: 'intro', label: 'Skip Intro' },
+            { key: 'credits', label: 'Skip Credits' },
+            { key: 'preview', label: 'Skip Preview' }
+        ];
+
+        v.addEventListener('timeupdate', function () {
+            var t = v.currentTime * 1000;
+            var matched = null;
+
+            for (var mi = 0; mi < SEGMENT_META.length; mi++) {
+                var meta = SEGMENT_META[mi];
+                var seg = skipSegments[meta.key];
+                if (!seg || skipBannerDismissed[meta.key]) continue;
+                var start = seg.start_ms != null ? seg.start_ms : 0;
+                var end = seg.end_ms != null ? seg.end_ms : (v.duration ? v.duration * 1000 : Infinity);
+                if (t >= start && t < end) {
+                    matched = { key: meta.key, label: meta.label, endSec: seg.end_ms != null ? seg.end_ms / 1000 : null };
+                    break;
+                }
+            }
+
+            if (matched) {
+                showBanner(matched.key, matched.label, matched.endSec);
+            } else if (currentShownKey) {
+                hideBanner();
+            }
+        });
+    })();
 
     (function () {
         if (!s) return;
@@ -1890,7 +2018,7 @@ function play(raw, skipProxy, videoId) {
                         if (!isCurrent) {
                             item.addEventListener('click', function () {
                                 haptic(10);
-                                location.href = location.pathname + '?id=' + id + '&s=' + season + '&e=' + ep.episode_number + '&ap=1';
+                                location.href = location.pathname + '?id=' + id + '&s=' + season + '&e=' + ep.episode_number + '&ap=1' + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
                             });
                         }
                         newList.appendChild(item);
@@ -2036,9 +2164,9 @@ function play(raw, skipProxy, videoId) {
     if (errRetryBtn) {
         errRetryBtn.addEventListener('click', function () {
             document.getElementById('error-screen').classList.remove('show');
-            var endpoint = s
+            var endpoint = (s
                 ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
-                : '/api?sources=1&id=' + id;
+                : '/api?sources=1&id=' + id) + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
             fetch(endpoint)
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
