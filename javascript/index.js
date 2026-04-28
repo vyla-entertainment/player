@@ -1817,9 +1817,8 @@ function play(raw, skipProxy, videoId) {
                 return r.json();
             })
             .then(function (d) {
-                console.log('[IntroDB] response for', introDbUrl, d);
                 function bestSegment(arr, name) {
-                    if (!arr || !arr.length) { console.log('[IntroDB]', name, 'no entries'); return null; }
+                    if (!arr || !arr.length) { return null; }
                     var qualified = arr.filter(function (seg) {
                         var hasTime = seg.end_ms != null || seg.start_ms != null;
                         if (!hasTime) return false;
@@ -1827,7 +1826,6 @@ function play(raw, skipProxy, videoId) {
                         return (seg.confidence >= 0.6 && seg.submission_count >= 2)
                             || seg.submission_count >= 3;
                     });
-                    console.log('[IntroDB]', name, 'qualified:', qualified.length, 'of', arr.length);
                     if (!qualified.length) return null;
                     return qualified.sort(function (a, b) {
                         var scoreA = (a.confidence || 0.5) * Math.log((a.submission_count || 1) + 1);
@@ -1839,10 +1837,8 @@ function play(raw, skipProxy, videoId) {
                 skipSegments.recap = bestSegment(d.recap, 'recap');
                 skipSegments.credits = bestSegment(d.credits, 'credits');
                 skipSegments.preview = bestSegment(d.preview, 'preview');
-                console.log('[IntroDB] final segments:', JSON.stringify(skipSegments));
             })
             .catch(function (err) {
-                console.error('[IntroDB] fetch error:', err.message, 'url:', introDbUrl);
             });
 
         var SEGMENT_META = [
