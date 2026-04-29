@@ -301,7 +301,7 @@ video.ready {
 #settings-panel.open {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(0.8);
     z-index: 99999;
 }
 
@@ -599,6 +599,19 @@ video.ready {
 
 .ep-item.current {
     background: rgba(255, 255, 255, 0.08);
+}
+
+.ep-item.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.ep-item.disabled .ep-name {
+    color: var(--white-45);
+}
+
+.ep-item.disabled .source-icon-wrap {
+    color: var(--white-22);
 }
 
 .ep-thumb {
@@ -1120,17 +1133,16 @@ video.ready {
 }
 
 #source-title-wrap {
-    display: none;
+    display: flex;
     position: relative;
     align-self: flex-start;
 }
 
 .source-dropdown {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 6px);
     left: 0;
     background: var(--menu-bg);
-    ;
     -webkit-backdrop-filter: var(--menu-blur);
     backdrop-filter: var(--menu-blur);
     border-radius: var(--menu-radius);
@@ -1146,7 +1158,8 @@ video.ready {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    margin-top: 10px;
+    padding: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .source-dropdown.open {
@@ -1294,7 +1307,6 @@ video.ready {
     bottom: calc(100% + 15px);
     right: 0;
     background: var(--menu-bg);
-    ;
     -webkit-backdrop-filter: var(--menu-blur);
     backdrop-filter: var(--menu-blur);
     border-radius: var(--menu-radius);
@@ -1781,7 +1793,9 @@ video.ready {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--black-50);
+    background: var(--menu-bg);
+    -webkit-backdrop-filter: var(--menu-blur);
+    backdrop-filter: var(--menu-blur);
     border: none;
     color: var(--white-85);
     font-family: var(--font);

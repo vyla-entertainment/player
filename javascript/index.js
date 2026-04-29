@@ -37,15 +37,18 @@ function hideLoader() {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'F' || e.key === 'f') {
         var player = document.getElementById('player');
+        var video = document.getElementById('v');
         var fsElement = document.fullscreenElement ||
             document.webkitFullscreenElement ||
             document.mozFullScreenElement ||
             document.msFullscreenElement;
         if (!fsElement) {
-            if (player.requestFullscreen) player.requestFullscreen();
-            else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-            else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
-            else if (player.msRequestFullscreen) player.msRequestFullscreen();
+            if (!requestIOSFullscreen(video)) {
+                if (player.requestFullscreen) player.requestFullscreen();
+                else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
+                else if (player.msRequestFullscreen) player.msRequestFullscreen();
+            }
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -467,6 +470,14 @@ function play(raw, skipProxy, videoId) {
         return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     }
 
+    function requestIOSFullscreen(video) {
+        if (isIOS() && video && video.webkitSupportsFullscreen) {
+            video.webkitEnterFullscreen();
+            return true;
+        }
+        return false;
+    }
+
     function isAndroid() {
         return /Android/.test(navigator.userAgent);
     }
@@ -740,15 +751,9 @@ function play(raw, skipProxy, videoId) {
 
     function showUnmuteHint() {
         var hint = document.getElementById('unmute-hint');
-        if (!hint) {
-            hint = document.createElement('div');
-            hint.id = 'unmute-hint';
-            hint.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(0,0,0,0.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff;font-family:var(--font);font-size:14px;font-weight:600;padding:14px 22px;border-radius:100px;display:flex;align-items:center;gap:10px;cursor:pointer;letter-spacing:0.02em;pointer-events:auto;transition:opacity 0.3s ease;';
-            hint.innerHTML = '<i class="fa-solid fa-volume-xmark" style="font-size:16px;"></i> Tap to unmute';
-            document.getElementById('player').appendChild(hint);
-        }
         hint.style.display = 'flex';
         hint.style.opacity = '1';
+        hint.style.pointerEvents = 'auto';
 
         function doUnmute() {
             v.muted = false;
@@ -766,8 +771,9 @@ function play(raw, skipProxy, videoId) {
             doUnmute();
         }
 
-        hint.addEventListener('click', function (ev) { ev.stopPropagation(); doUnmute(); });
-        hint.addEventListener('touchend', function (ev) { ev.stopPropagation(); doUnmute(); });
+        hint.addEventListener('click', function (ev) { ev.stopPropagation(); ev.preventDefault(); doUnmute(); });
+        hint.addEventListener('touchend', function (ev) { ev.stopPropagation(); ev.preventDefault(); doUnmute(); });
+        hint.addEventListener('touchstart', function (ev) { ev.stopPropagation(); ev.preventDefault(); });
         document.addEventListener('click', onDoc, true);
     }
 
@@ -1295,22 +1301,34 @@ function play(raw, skipProxy, videoId) {
         sourceDropdown.classList.add('open');
         showUI(true);
         haptic(10);
+
+        if (sources.length === 0) {
+            showSourceSkeleton();
+            fetchSources();
+        }
     }
 
     function buildSourceList() {
         sourceListEl.innerHTML = '';
         if (sourceBtnLabel) {
-            sourceBtnLabel.innerHTML = 'SOURCE: ' + (currentSourceIndex + 1) + ' <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+            if (sources.length === 0) {
+                sourceBtnLabel.innerHTML = 'Sources <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+            } else {
+                sourceBtnLabel.innerHTML = 'SOURCE: ' + (currentSourceIndex + 1) + ' <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+            }
         }
         sources.forEach(function (source, i) {
             var item = document.createElement('div');
             var isActive = i === currentSourceIndex;
-            item.className = 'ep-item' + (isActive ? ' current' : '');
+            var isWorking = source.working === true;
+            var hasUrl = !!source.url;
+
+            item.className = 'ep-item' + (isActive ? ' current' : '') + (!isWorking ? ' disabled' : '');
             item.innerHTML =
-                '<div class="source-icon-wrap"><i class="fa-solid fa-' + (isActive ? 'circle-check' : 'circle') + '"></i></div>' +
-                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">' + (source.label || 'Source: ' + (i + 1)) + '</span></div></div>' +
-                (isActive ? '<i class="fa-solid fa-check source-active-check"></i>' : '');
-            if (!isActive) {
+                '<div class="source-icon-wrap"><i class="fa-solid fa-' + (isActive ? 'circle' : 'circle') + '"></i></div>' +
+                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">' + (source.label || 'Source: ' + (i + 1)) + '</span></div></div>';
+
+            if (!isActive && hasUrl && isWorking) {
                 item.addEventListener('click', function () {
                     currentSourceIndex = i;
                     switchSource(source.url);
@@ -1323,6 +1341,68 @@ function play(raw, skipProxy, videoId) {
         });
     }
 
+    function showSourceSkeleton() {
+        sourceListEl.innerHTML = '<div class="sub-skeleton"><div class="sub-skel-item"></div><div class="sub-skel-item"></div><div class="sub-skel-item"></div><div class="sub-skel-item"></div></div>';
+        if (sourceBtnLabel) {
+            sourceBtnLabel.innerHTML = 'Sources <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+        }
+    }
+
+    function fetchSources() {
+        var HARDCODED_SOURCES = [
+            { key: 'xpass', label: 'Icefy Xpass' },
+            { key: 'vidlink', label: 'Vidlink' },
+            { key: 'icefy', label: 'Icefy CDN' },
+            { key: 'vidzee', label: 'VidZee' }
+        ];
+
+        if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
+
+        sources = HARDCODED_SOURCES.map(function (src) {
+            return { label: src.label, url: null, working: null, key: src.key };
+        });
+        currentSourceIndex = 0;
+
+        var endpoint = (s
+            ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
+            : '/api?sources=1&id=' + id) + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
+
+        fetch(endpoint)
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (d) {
+                var urlByKey = {};
+                (d.sources || []).forEach(function (src) {
+                    urlByKey[src.label] = src.url;
+                });
+
+                var working = [];
+                var notWorking = [];
+                HARDCODED_SOURCES.forEach(function (src) {
+                    var url = urlByKey[src.key] || null;
+                    var isWorking = !!url;
+                    var entry = { label: src.label, url: url, working: isWorking, key: src.key };
+                    if (isWorking) {
+                        working.push(entry);
+                    } else {
+                        notWorking.push(entry);
+                    }
+                });
+
+                sources = working.concat(notWorking);
+                currentSourceIndex = 0;
+                buildSourceList();
+            })
+            .catch(function () {
+                sources = HARDCODED_SOURCES.map(function (src) {
+                    return { label: src.label, url: null, working: false, key: src.key };
+                });
+                buildSourceList();
+            });
+    }
+
     function closeSourcePanel() {
         sourcePanelOpen = false;
         sourceDropdown.classList.remove('open');
@@ -1332,34 +1412,6 @@ function play(raw, skipProxy, videoId) {
         }
     }
 
-    function fetchSources() {
-        if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
-        if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING... <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-        sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Loading...</span></div></div>';
-        var endpoint = (s
-            ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
-            : '/api?sources=1&id=' + id) + (bluphim ? '&bluphim=' + encodeURIComponent(bluphim) : '');
-        fetch(endpoint)
-            .then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(function (d) {
-                if (!d.sources || !d.sources.length) {
-                    if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'NO SOURCES <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-                    sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">No sources available</span></div></div>';
-                    return;
-                }
-                sources = d.sources;
-                currentSourceIndex = 0;
-                buildSourceList();
-            })
-            .catch(function () {
-                if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'SOURCE: 1 <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-                sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Failed to load</span></div></div>';
-            });
-    }
-
     if (sourceBtnLabel) {
         sourceBtnLabel.addEventListener('click', function (e) {
             e.stopPropagation();
@@ -1367,8 +1419,6 @@ function play(raw, skipProxy, videoId) {
             haptic(6);
         });
     }
-
-    fetchSources();
 
     function bindControl(el, key, isColor) {
         if (!el) return;
@@ -1444,11 +1494,13 @@ function play(raw, skipProxy, videoId) {
                 else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
                 else if (document.msExitFullscreen) document.msExitFullscreen();
             } else {
-                var player = document.getElementById('player');
-                if (player.requestFullscreen) player.requestFullscreen();
-                else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-                else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
-                else if (player.msRequestFullscreen) player.msRequestFullscreen();
+                if (!requestIOSFullscreen(v)) {
+                    var player = document.getElementById('player');
+                    if (player.requestFullscreen) player.requestFullscreen();
+                    else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                    else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
+                    else if (player.msRequestFullscreen) player.msRequestFullscreen();
+                }
             }
         });
     }
@@ -1546,8 +1598,10 @@ function play(raw, skipProxy, videoId) {
                 if (document.exitFullscreen) document.exitFullscreen();
                 else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             } else {
-                if (player.requestFullscreen) player.requestFullscreen();
-                else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                if (!requestIOSFullscreen(v)) {
+                    if (player.requestFullscreen) player.requestFullscreen();
+                    else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
+                }
             }
         }
     });

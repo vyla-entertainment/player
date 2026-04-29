@@ -17,9 +17,9 @@
 
         <div id="title-bar">
             <span id="title-text"></span>
-            <div id="source-title-wrap" style="display:none;position:relative;align-self:flex-start;">
+            <div id="source-title-wrap" style="position:relative;align-self:flex-start;">
                 <span id="source-sub-label"
-                    style="font-size:11px;font-weight:600;color:var(--white-45);letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;">Loading...
+                    style="font-size:11px;font-weight:600;color:var(--white-45);letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;">Source
                     <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i></span>
                 <div id="source-dropdown" class="source-dropdown"></div>
             </div>
@@ -280,6 +280,11 @@
         </div>
 
         <div id="subtitle-display"><span id="subtitle-text"></span></div>
+
+        <div id="unmute-hint"
+            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(0,0,0,0.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff;font-family:var(--font);font-size:14px;font-weight:600;padding:14px 22px;border-radius:100px;display:flex;align-items:center;gap:10px;cursor:pointer;letter-spacing:0.02em;pointer-events:auto;transition:opacity 0.3s ease;opacity:0;pointer-events:none;">
+            <i class="fa-solid fa-volume-xmark" style="font-size:16px;"></i> Tap to unmute
+        </div>
 
         <div id="ep-panel-overlay"></div>
 

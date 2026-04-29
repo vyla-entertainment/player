@@ -6,7 +6,6 @@ const http = require('http');
 const vidlink = require('./sources/vidlink');
 const icefy = require('./sources/icefy');
 const vidzee = require('./sources/vidzee');
-const movieking = require('./sources/movieking');
 
 const REFERER = vidlink.REFERER;
 const ORIGIN = vidlink.ORIGIN;
@@ -114,39 +113,6 @@ async function proxyVidzee(url, res) {
     upstream.pipe(res);
 }
 
-async function proxyMovieking(url, res) {
-    const MOVIKING_PROXY_HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
-        'Origin': 'https://moviking.neuronix.sbs',
-        'Referer': 'https://moviking.neuronix.sbs/',
-    };
-    const upstream = await fetchUpstream(url, 0, MOVIKING_PROXY_HEADERS);
-    const ct = (upstream.headers['content-type'] || '').toLowerCase();
-
-    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url) || /\/segment\/[a-f0-9]+\/(\?|$)/i.test(url);
-    if (isM3u8) {
-        const chunks = [];
-        for await (const c of upstream) chunks.push(c);
-        const body = Buffer.concat(chunks).toString('utf8');
-        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        return res.end(rewriteM3u8(body, url, '&mk=1'));
-    }
-
-    const isSegment = /\.(ts|mp4|m4s|jpg|jpeg)(\?|$)/i.test(url) || ct.includes('video/') || ct.includes('image/');
-    if (isSegment) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        upstream.pipe(res);
-        return;
-    }
-
-    res.setHeader('Content-Type', ct || 'application/octet-stream');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    upstream.pipe(res);
-}
-
 async function getMetadata(id, s, e) {
     try {
         const k = process.env.TMDB_API_KEY;
@@ -212,29 +178,21 @@ module.exports = async (req, res) => {
         }
     }
 
-    const BLUPHIM_MAP = {
-        '30981': 'https://bluphim5.com/xem-phim/monster-4257',
-    };
-
     if ('sources' in q) {
         try {
-            const bluphimUrl = q.bluphim || (q.id && BLUPHIM_MAP[q.id]) || null;
-            const [vidlinkUrl, xpassUrl, icefyUrl, vidzeeUrl, moviekingUrl] = await Promise.all([
+            const [vidlinkUrl, xpassUrl, icefyUrl, vidzeeUrl] = await Promise.all([
                 vidlink.getStream(q.id, q.s, q.e).catch(() => null),
-                icefy.getStream(q.id, q.s, q.e, 'https://streams.icefy.top').catch(() => null),
+                icefy.getStream(q.id, q.s, q.e, 'https://xpass.icefy.top').catch(() => null),
                 icefy.getStream(q.id, q.s, q.e, 'https://abc-cdn4-optestre.icefy.top').catch(() => null),
-                vidzee.getStream(q.id, q.s, q.e).catch(() => null),
-                bluphimUrl ? movieking.getStream(bluphimUrl).catch(() => null) : null
+                vidzee.getStream(q.id, q.s, q.e).catch(() => null)
             ]);
 
             const sources = [];
-            if (xpassUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof xpassUrl === 'object' ? xpassUrl.url : xpassUrl) + '&ix=1' });
-            if (vidlinkUrl) sources.push({ url: typeof vidlinkUrl === 'object' ? vidlinkUrl.url : vidlinkUrl });
-            if (icefyUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof icefyUrl === 'object' ? icefyUrl.url : icefyUrl) + '&ix=1' });
-            if (vidzeeUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof vidzeeUrl === 'object' ? vidzeeUrl.url : vidzeeUrl) + '&vz=1' });
-            if (moviekingUrl) sources.push({ url: '/api?url=' + encodeURIComponent(moviekingUrl) + '&mk=1' });
-            sources.forEach((s, i) => s.label = 'Source: ' + (i + 1));
-
+            if (xpassUrl) sources.push({ label: 'xpass', url: '/api?url=' + encodeURIComponent(typeof xpassUrl === 'object' ? xpassUrl.url : xpassUrl) + '&ix=1' });
+            if (vidlinkUrl) sources.push({ label: 'vidlink', url: typeof vidlinkUrl === 'object' ? vidlinkUrl.url : vidlinkUrl });
+            if (icefyUrl) sources.push({ label: 'icefy', url: '/api?url=' + encodeURIComponent(typeof icefyUrl === 'object' ? icefyUrl.url : icefyUrl) + '&ix=1' });
+            if (vidzeeUrl) sources.push({ label: 'vidzee', url: '/api?url=' + encodeURIComponent(typeof vidzeeUrl === 'object' ? vidzeeUrl.url : vidzeeUrl) + '&vz=1' });
+            
             if (!sources.length) {
                 res.statusCode = 502;
                 return res.end(JSON.stringify({ error: 'no sources' }));
@@ -252,7 +210,6 @@ module.exports = async (req, res) => {
         try {
             const rawUrl = decodeURIComponent(q.url || q.proxy);
             if (q.vz) return await proxyVidzee(rawUrl, res);
-            if (q.mk) return await proxyMovieking(rawUrl, res);
             const extraHeaders = q.ix ? ICEFY_HEADERS : {};
             return await proxy(rawUrl, res, extraHeaders);
         } catch (e) {
@@ -274,7 +231,6 @@ module.exports = async (req, res) => {
 
         let url;
         let isVidzee = false;
-        let isMovieking = false;
 
         if (primaryUrl) {
             url = primaryUrl;
@@ -287,20 +243,12 @@ module.exports = async (req, res) => {
                 if (url) isVidzee = true;
             }
 
-            const bluphimFallback = q.bluphim || (q.id && BLUPHIM_MAP[q.id]) || null;
-            if (!url && bluphimFallback) {
-                url = await movieking.getStream(bluphimFallback).catch(() => null);
-                if (url) isMovieking = true;
-            }
+            if (!url) throw new Error('no stream');
         }
-
-        if (!url) throw new Error('no stream');
 
         const isIcefyUrl = url.includes('icefy.top') || url.includes('optestre');
         let finalUrl;
-        if (isMovieking) {
-            finalUrl = '/api?url=' + encodeURIComponent(url) + '&mk=1';
-        } else if (isVidzee) {
+        if (isVidzee) {
             finalUrl = '/api?url=' + encodeURIComponent(url) + '&vz=1';
         } else if (isIcefyUrl) {
             finalUrl = '/api?url=' + encodeURIComponent(url) + '&ix=1';
@@ -317,7 +265,7 @@ module.exports = async (req, res) => {
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${meta?.overview || ''}">
 <meta property="og:image" content="${img}">
-</head></html>`);
+</head><body></body></html>`);
         }
 
         res.setHeader('Content-Type', 'application/json');
