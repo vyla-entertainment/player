@@ -9,23 +9,70 @@ const vidzee = require('./sources/vidzee');
 
 const REFERER = vidlink.REFERER;
 const ORIGIN = vidlink.ORIGIN;
-const UA = vidlink.UA;
 const ICEFY_HEADERS = icefy.ICEFY_HEADERS;
 const VIDZEE_HLS_HEADERS = vidzee.hlsHeaders;
+
+const UA_LIST = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+];
+
+const getUA = () => UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
+
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000;
+
+function getCached(key, fn) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.ts < CACHE_TTL) return Promise.resolve(hit.val);
+    return fn().then(val => {
+        if (val) cache.set(key, { val, ts: Date.now() });
+        return val;
+    });
+}
+
+const jitter = (ms) => new Promise(r => setTimeout(r, Math.random() * ms));
+
+async function withRetry(fn, attempts = 3, delay = 1000) {
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const result = await fn();
+            if (result) return result;
+        } catch {
+            if (i === attempts - 1) return null;
+            await new Promise(r => setTimeout(r, delay * (i + 1)));
+        }
+    }
+    return null;
+}
 
 function fetchUpstream(url, redirects = 0, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
         if (redirects > 5) return reject(new Error('redirect loop'));
 
-        (url.startsWith('https') ? https : http).get(url, {
-            headers: { Referer: REFERER, Origin: ORIGIN, 'User-Agent': UA, ...extraHeaders }
-        }, res => {
+        const options = {
+            headers: {
+                Referer: REFERER,
+                Origin: ORIGIN,
+                'User-Agent': getUA(),
+                ...extraHeaders
+            },
+            timeout: 10000,
+        };
+
+        const req = (url.startsWith('https') ? https : http).get(url, options, res => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
                 const next = new URL(res.headers.location, url).href;
                 return resolve(fetchUpstream(next, redirects + 1, extraHeaders));
             }
             resolve(res);
-        }).on('error', reject);
+        });
+
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.on('error', reject);
     });
 }
 
@@ -99,14 +146,6 @@ async function proxyVidzee(url, res) {
         return res.end(rewriteM3u8(body, url, '&vz=1'));
     }
 
-    const isSegment = /\.(ts|mp4|m4s|jpg|jpeg)(\?|$)/i.test(url) || ct.includes('video/') || ct.includes('image/');
-    if (isSegment) {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-        upstream.pipe(res);
-        return;
-    }
-
     res.setHeader('Content-Type', ct || 'application/octet-stream');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -117,11 +156,9 @@ async function getMetadata(id, s, e) {
     try {
         const k = process.env.TMDB_API_KEY;
         if (!k) return null;
-
         const url = s
             ? `https://api.themoviedb.org/3/tv/${id}/season/${s}/episode/${e || 1}?api_key=${k}`
             : `https://api.themoviedb.org/3/movie/${id}?api_key=${k}`;
-
         const res = await fetch(url);
         if (!res.ok) return null;
         return await res.json();
@@ -180,19 +217,21 @@ module.exports = async (req, res) => {
 
     if ('sources' in q) {
         try {
-            const [vidlinkUrl, xpassUrl, icefyUrl, vidzeeUrl] = await Promise.all([
-                vidlink.getStream(q.id, q.s, q.e).catch(() => null),
-                icefy.getStream(q.id, q.s, q.e, 'https://xpass.icefy.top').catch(() => null),
-                icefy.getStream(q.id, q.s, q.e, 'https://abc-cdn4-optestre.icefy.top').catch(() => null),
-                vidzee.getStream(q.id, q.s, q.e).catch(() => null)
+            const cacheKey = `${q.id}-${q.s || ''}-${q.e || ''}`;
+
+            const [vidlinkUrl, icefyUrl, vidzeeUrl] = await Promise.all([
+                getCached(`vidlink-${cacheKey}`, () => withRetry(() => vidlink.getStream(q.id, q.s, q.e))).catch(() => null),
+                jitter(200).then(() => getCached(`icefy1-${cacheKey}`, () => withRetry(() => icefy.getStream(q.id, q.s, q.e, 'https://streams.icefy.top'))).catch(() => null)),
+                jitter(400).then(() => getCached(`vidzee-${cacheKey}`, () => withRetry(() => vidzee.getStream(q.id, q.s, q.e))).catch(() => null)),
             ]);
 
             const sources = [];
-            if (xpassUrl) sources.push({ label: 'xpass', url: '/api?url=' + encodeURIComponent(typeof xpassUrl === 'object' ? xpassUrl.url : xpassUrl) + '&ix=1' });
-            if (vidlinkUrl) sources.push({ label: 'vidlink', url: typeof vidlinkUrl === 'object' ? vidlinkUrl.url : vidlinkUrl });
-            if (icefyUrl) sources.push({ label: 'icefy', url: '/api?url=' + encodeURIComponent(typeof icefyUrl === 'object' ? icefyUrl.url : icefyUrl) + '&ix=1' });
-            if (vidzeeUrl) sources.push({ label: 'vidzee', url: '/api?url=' + encodeURIComponent(typeof vidzeeUrl === 'object' ? vidzeeUrl.url : vidzeeUrl) + '&vz=1' });
-            
+            if (vidlinkUrl) sources.push({ url: typeof vidlinkUrl === 'object' ? vidlinkUrl.url : vidlinkUrl });
+            if (icefyUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof icefyUrl === 'object' ? icefyUrl.url : icefyUrl) + '&ix=1' });
+            if (vidzeeUrl) sources.push({ url: '/api?url=' + encodeURIComponent(typeof vidzeeUrl === 'object' ? vidzeeUrl.url : vidzeeUrl) + '&vz=1' });
+
+            sources.forEach((s, i) => s.label = 'Source: ' + (i + 1));
+
             if (!sources.length) {
                 res.statusCode = 502;
                 return res.end(JSON.stringify({ error: 'no sources' }));
@@ -224,8 +263,10 @@ module.exports = async (req, res) => {
     }
 
     try {
+        const cacheKey = `${q.id}-${q.s || ''}-${q.e || ''}`;
+
         const [primaryUrl, meta] = await Promise.all([
-            vidlink.getStream(q.id, q.s, q.e).catch(() => null),
+            getCached(`vidlink-${cacheKey}`, () => withRetry(() => vidlink.getStream(q.id, q.s, q.e))).catch(() => null),
             getMetadata(q.id, q.s, q.e)
         ]);
 
@@ -235,19 +276,17 @@ module.exports = async (req, res) => {
         if (primaryUrl) {
             url = primaryUrl;
         } else {
-            url = await icefy.getStream(q.id, q.s, q.e, 'https://streams.icefy.top').catch(() => null)
-                || await icefy.getStream(q.id, q.s, q.e, 'https://abc-cdn4-optestre.icefy.top').catch(() => null);
+            url = await jitter(200).then(() => getCached(`icefy1-${cacheKey}`, () => withRetry(() => icefy.getStream(q.id, q.s, q.e, 'https://streams.icefy.top'))).catch(() => null))
+                || await jitter(200).then(() => getCached(`vidzee-${cacheKey}`, () => withRetry(() => vidzee.getStream(q.id, q.s, q.e))).catch(() => null));
 
-            if (!url) {
-                url = await vidzee.getStream(q.id, q.s, q.e).catch(() => null);
-                if (url) isVidzee = true;
-            }
-
-            if (!url) throw new Error('no stream');
+            if (url) isVidzee = true;
         }
+
+        if (!url) throw new Error('no stream');
 
         const isIcefyUrl = url.includes('icefy.top') || url.includes('optestre');
         let finalUrl;
+
         if (isVidzee) {
             finalUrl = '/api?url=' + encodeURIComponent(url) + '&vz=1';
         } else if (isIcefyUrl) {
@@ -265,7 +304,7 @@ module.exports = async (req, res) => {
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${meta?.overview || ''}">
 <meta property="og:image" content="${img}">
-</head><body></body></html>`);
+</head></html>`);
         }
 
         res.setHeader('Content-Type', 'application/json');
