@@ -376,7 +376,11 @@ async function handleTestSource(res, source, id, s, e) {
 }
 
 module.exports = async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    var origin = req.headers.origin;
+    if (origin === 'https://vyla.pages.dev' || origin === 'http://localhost:7860') {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
 
     const { pathname, searchParams } = new URL(req.url, 'http://x');
     const q = Object.fromEntries(searchParams);

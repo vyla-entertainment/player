@@ -1,5 +1,31 @@
 var alive = true;
 var shouldHideLoader = false;
+var blocked = false;
+
+(function () {
+    var allowedOrigins = ['https://vyla.pages.dev', 'http://localhost', 'http://localhost:7860'];
+    var anc = document.referrer ? new URL(document.referrer).origin : '';
+    var isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isLocalhost && (window.self === window.top || !allowedOrigins.some(function (o) { return anc.startsWith(o); }))) {
+        var loader = document.getElementById('loader');
+        if (loader) {
+            var p = new URLSearchParams(location.search);
+            var t = p.get('type') || (p.get('s') ? 'tv' : 'movie');
+            var mid = p.get('id');
+            var season = p.get('s');
+            var ep = p.get('e');
+            var movieUrl = 'vyla.pages.dev/player?type=movie&id=' + (mid || 'tmdbid');
+            var showUrl = 'vyla.pages.dev/player?type=tv&id=' + (mid || 'tmdbid') + '&s=' + (season || 'thenumber') + '&e=' + (ep || 'thenumber');
+            document.getElementById('loader-msg').innerHTML =
+                '<span class="loader-msg-title">This site cannot be visited this way.</span>' +
+                '<span class="loader-msg-url">' + (t === 'tv'
+                    ? 'vyla.pages.dev/player?type=tv&id=' + (mid || 'tmdbid') + '&s=' + (season || 'thenumber') + '&e=' + (ep || 'thenumber')
+                    : 'vyla.pages.dev/player?type=movie&id=' + (mid || 'tmdbid')) + '</span>';
+        }
+        blocked = true;
+        return;
+    }
+})();
 
 function initLoaderVideo() {
     var loaderVideo = document.getElementById('loader-bg-video');
@@ -15,7 +41,9 @@ function isMobile() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    initLoaderVideo();
+    if (!blocked) {
+        initLoaderVideo();
+    }
 
     if (isMobile()) {
         var mainVideo = document.getElementById('v');
@@ -79,81 +107,98 @@ function showNowPlayingToast(title) {
     }, 4500);
 }
 
-if (id) {
-    var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
-    fetch(apiUrl)
-        .then(function (r) {
-            var ct = r.headers.get('Content-Type') || '';
-            if (ct.includes('application/json')) {
-                return r.json().then(function (d) {
-                    if (d.error || !d.url) {
-                        throw new Error(d.error || 'no url');
+if (!blocked) {
+    if (id) {
+        var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+
+        function fetchWithRetry(attempts) {
+            return fetch(apiUrl)
+                .then(function (r) {
+                    var ct = r.headers.get('Content-Type') || '';
+                    if (ct.includes('application/json')) {
+                        return r.json().then(function (d) {
+                            if (d.error || !d.url) {
+                                throw new Error(d.error || 'no url');
+                            }
+                            return { type: 'json', data: d };
+                        });
+                    } else if (ct.includes('mpegurl') || ct.includes('m3u8')) {
+                        return { type: 'm3u8', url: apiUrl };
+                    } else {
+                        throw new Error('unexpected content type');
                     }
-                    return { type: 'json', data: d };
-                });
-            } else if (ct.includes('mpegurl') || ct.includes('m3u8')) {
-                return { type: 'm3u8', url: apiUrl };
-            } else {
-                throw new Error('unexpected content type');
-            }
-        })
-        .then(function (result) {
-            shouldHideLoader = true;
-            hideLoader();
-            if (result.type === 'json') {
-                play(result.data.url, false, id);
-                var title = 'Unknown';
-                if (result.data.meta) {
-                    var m = result.data.meta;
-                    title = (m.title || m.name || 'Unknown');
-                    if ('mediaSession' in navigator) {
-                        var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
-                        navigator.mediaSession.metadata = new MediaMetadata({
-                            title: title,
-                            artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
+                })
+                .catch(function (err) {
+                    if (attempts > 0) {
+                        return new Promise(function (resolve) {
+                            setTimeout(function () {
+                                resolve(fetchWithRetry(attempts - 1));
+                            }, 500);
                         });
                     }
-                }
-                if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                document.title = title;
-                document.getElementById('title-text').textContent = title;
-                showNowPlayingToast(title);
-            } else if (result.type === 'm3u8') {
-                var tmdbUrl = '/api?tmdb_movie=1&id=' + id;
+                    throw err;
+                });
+        }
 
-                fetch(tmdbUrl)
-                    .then(function (mr) {
-                        if (!mr.ok) {
-                            throw new Error('TMDB fetch failed: ' + mr.status);
-                        }
-                        return mr.json();
-                    })
-                    .then(function (meta) {
-                        if (meta.success === false) {
-                            throw new Error(meta.status_message);
-                        }
-                        var title = (meta.title || meta.name || 'Unknown');
-                        if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                        document.title = title;
-                        document.getElementById('title-text').textContent = title;
-                        showNowPlayingToast(title);
+        fetchWithRetry(2)
+            .then(function (result) {
+                shouldHideLoader = true;
+                hideLoader();
+                if (result.type === 'json') {
+                    play(result.data.url, false, id);
+                    var title = 'Unknown';
+                    if (result.data.meta) {
+                        var m = result.data.meta;
+                        title = (m.title || m.name || 'Unknown');
                         if ('mediaSession' in navigator) {
-                            var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
+                            var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
                             navigator.mediaSession.metadata = new MediaMetadata({
                                 title: title,
                                 artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
                             });
                         }
-                    })
-                    .catch(function (err) {
-                    });
-                play(result.url, true, id);
-            }
-        }).catch(function () {
-            document.getElementById('error-screen').classList.add('show');
-        });
-} else {
-    document.getElementById('error-screen').classList.add('show');
+                    }
+                    if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                    document.title = title;
+                    document.getElementById('title-text').textContent = title;
+                    showNowPlayingToast(title);
+                } else if (result.type === 'm3u8') {
+                    var tmdbUrl = '/api?tmdb_movie=1&id=' + id;
+
+                    fetch(tmdbUrl)
+                        .then(function (mr) {
+                            if (!mr.ok) {
+                                throw new Error('TMDB fetch failed: ' + mr.status);
+                            }
+                            return mr.json();
+                        })
+                        .then(function (meta) {
+                            if (meta.success === false) {
+                                throw new Error(meta.status_message);
+                            }
+                            var title = (meta.title || meta.name || 'Unknown');
+                            if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                            document.title = title;
+                            document.getElementById('title-text').textContent = title;
+                            showNowPlayingToast(title);
+                            if ('mediaSession' in navigator) {
+                                var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
+                                navigator.mediaSession.metadata = new MediaMetadata({
+                                    title: title,
+                                    artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
+                                });
+                            }
+                        })
+                        .catch(function (err) {
+                        });
+                    play(result.url, true, id);
+                }
+            }).catch(function () {
+                document.getElementById('error-screen').classList.add('show');
+            });
+    } else {
+        document.getElementById('error-screen').classList.add('show');
+    }
 }
 
 var _hxInput = (function () {
@@ -2089,7 +2134,7 @@ function play(raw, skipProxy, videoId) {
                 .then(function (d) {
                     if (!d.sources || !d.sources.length) throw new Error('no sources');
                     var first = d.sources[0];
-                    switchSource(first.url);
+                    play(first.url, false, id);
                 })
                 .catch(function () {
                     document.getElementById('error-screen').classList.add('show');
