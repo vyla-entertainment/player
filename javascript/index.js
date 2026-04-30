@@ -1223,28 +1223,45 @@ function play(raw, skipProxy, videoId) {
             loaderEl.classList.remove('out');
         }
         if (loaderVid) {
-            loaderVid.src = 'https://hosting.anticroom.workers.dev/view/video/prjcfe0som98vhyb5tyk.mp4';
+            loaderVid.src = 'https://videos.pexels.com/video-files/29848606/12817774_3840_2160_30fps.mp4';
             loaderVid.play().catch(function () { });
         }
 
         var loaderHideTimeout = null;
+        var switched = false;
 
         function onSwitchReady() {
+            if (switched) return;
+            switched = true;
             clearTimeout(loaderHideTimeout);
             hideBuffering();
             if (loaderEl) {
                 loaderEl.classList.add('out');
                 setTimeout(function () { loaderEl.style.display = 'none'; }, 1000);
             }
-            if (savedTime > 0 && v.duration && savedTime < v.duration) {
-                v.currentTime = savedTime;
+            function doSeekAndPlay() {
+                if (savedTime > 0 && !isNaN(v.duration) && v.duration > 0 && savedTime < v.duration) {
+                    v.currentTime = savedTime;
+                    v.addEventListener('seeked', function onSeeked() {
+                        v.removeEventListener('seeked', onSeeked);
+                        if (wasPlaying) v.play().catch(function () { });
+                    }, { once: true });
+                } else {
+                    if (wasPlaying) v.play().catch(function () { });
+                }
             }
-            if (wasPlaying) v.play().catch(function () { });
+
+            if (!isNaN(v.duration) && v.duration > 0) {
+                doSeekAndPlay();
+            } else {
+                v.addEventListener('canplay', function onCp() {
+                    v.removeEventListener('canplay', onCp);
+                    doSeekAndPlay();
+                });
+            }
         }
 
-        loaderHideTimeout = setTimeout(function () {
-            onSwitchReady();
-        }, 12000);
+        loaderHideTimeout = setTimeout(onSwitchReady, 15000);
 
         if (Hls.isSupported() && typeof hls !== 'undefined') {
             hls.stopLoad();
@@ -1254,15 +1271,15 @@ function play(raw, skipProxy, videoId) {
             hls.once(Hls.Events.MANIFEST_PARSED, function () {
                 buildQualityOpts();
             });
-            v.addEventListener('loadedmetadata', function onSwitchMeta() {
-                v.removeEventListener('loadedmetadata', onSwitchMeta);
+            v.addEventListener('canplay', function onSwitchCp() {
+                v.removeEventListener('canplay', onSwitchCp);
                 onSwitchReady();
             });
         } else {
             v.src = newSrc;
             v.load();
-            v.addEventListener('loadedmetadata', function onSwitchMeta() {
-                v.removeEventListener('loadedmetadata', onSwitchMeta);
+            v.addEventListener('canplay', function onSwitchCp() {
+                v.removeEventListener('canplay', onSwitchCp);
                 onSwitchReady();
             });
         }

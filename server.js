@@ -15,11 +15,7 @@ app.use(express.static(path.join(__dirname)));
 app.use('/styling', express.static(path.join(__dirname, 'styling')));
 app.use('/javascript', express.static(path.join(__dirname, 'javascript')));
 
-app.all('/api', (req, res) => {
-    apiHandler(req, res);
-});
-
-app.all('/api/proxy', (req, res) => {
+app.all('/api*', (req, res) => {
     apiHandler(req, res);
 });
 
