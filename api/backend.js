@@ -382,6 +382,8 @@ module.exports = async (req, res) => {
     }
     res.setHeader('Access-Control-Allow-Credentials', 'true');
 
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://vyla.pages.dev http://localhost:7860 http://localhost");
+
     const { pathname, searchParams } = new URL(req.url, 'http://x');
     const q = Object.fromEntries(searchParams);
     const isApiRoot = pathname === '/api' || pathname === '/api/';

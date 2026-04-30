@@ -6,7 +6,10 @@ var blocked = false;
     var allowedOrigins = ['https://vyla.pages.dev', 'http://localhost', 'http://localhost:7860'];
     var anc = document.referrer ? new URL(document.referrer).origin : '';
     var isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isLocalhost && (window.self === window.top || !allowedOrigins.some(function (o) { return anc.startsWith(o); }))) {
+    var isInIframe = window.self !== window.top;
+    var isAllowedEmbed = isInIframe && allowedOrigins.some(function (o) { return anc.startsWith(o); });
+
+    if (!isLocalhost && (!isAllowedEmbed)) {
         var loader = document.getElementById('loader');
         if (loader) {
             var p = new URLSearchParams(location.search);
