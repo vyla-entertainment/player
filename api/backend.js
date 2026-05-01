@@ -6,6 +6,8 @@ const http = require('http');
 const vidlink = require('./sources/vidlink');
 const icefy = require('./sources/icefy');
 const vidzee = require('./sources/vidzee');
+const vidnest = require('./sources/vidnest');
+const vidsrc = require('./sources/vidsrc');
 
 const REFERER = vidlink.REFERER;
 const ORIGIN = vidlink.ORIGIN;
@@ -29,6 +31,8 @@ const SOURCE_TIMEOUT = {
     icefy: 8000,
     vidzee: 15000,
     vidzee_sources: 5000,
+    vidnest: 20000,
+    vidsrc: 25000,
 };
 
 function getCached(key, fn) {
@@ -76,9 +80,10 @@ async function proxy(url, res) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.end(rewriteM3u8(body, url));
     }
-    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Content-Type', ct || 'video/MP2T');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length,Content-Range');
     upstream.pipe(res);
 }
 
@@ -96,6 +101,24 @@ async function proxyVidlink(url, res) {
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
         res.setHeader('Access-Control-Allow-Origin', '*');
         return res.end(rewriteM3u8(body, url, '&vl=1'));
+    }
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    upstream.pipe(res);
+}
+
+async function proxyVidnest(url, res) {
+    const upstream = await fetchUpstream(url, 0, vidnest.HEADERS);
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewriteM3u8(body, url, '&vn=1'));
     }
     res.setHeader('Content-Type', ct || 'application/octet-stream');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -140,7 +163,7 @@ function rewriteM3u8(body, url, extraParam = '') {
             });
         }
         const abs = t.startsWith('http') ? t : t.startsWith('/') ? origin + t : dir + t;
-        if (abs.includes('tiktokcdn.com') || abs.includes('p16-sg') || abs.includes('p19-sg')) return abs;
+        if (abs.includes('tiktokcdn.com') || abs.includes('p16-sg') || abs.includes('p19-sg')) return '/api?url=' + encodeURIComponent(abs) + '&tt=1';
         return '/api?url=' + encodeURIComponent(abs) + extraParam;
     }).join('\n');
 }
@@ -164,7 +187,7 @@ async function proxyVidzee(url, res) {
         return res.end(JSON.stringify({ error: 'upstream error', status: upstream.statusCode, body, url }));
     }
 
-    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8(\?|$)/i.test(url);
     if (isM3u8) {
         const chunks = [];
         for await (const c of upstream) chunks.push(c);
@@ -183,6 +206,7 @@ async function proxyVidzee(url, res) {
                 });
             }
             const abs = t.startsWith('http') ? t : t.startsWith('/') ? origin + t : dir + t;
+            if (abs.includes('tiktokcdn.com') || abs.includes('p16-sg') || abs.includes('p19-sg')) return `/api?url=${encodeURIComponent(abs)}&tt=1`;
             return `/api?url=${encodeURIComponent(abs)}&vz=1`;
         }).join('\n');
 
@@ -191,6 +215,24 @@ async function proxyVidzee(url, res) {
         return res.end(rewritten);
     }
 
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    upstream.pipe(res);
+}
+
+async function proxyVidsrc(url, res) {
+    const upstream = await fetchUpstream(url, 0, vidsrc.HEADERS);
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewriteM3u8(body, url, '&vs=1'));
+    }
     res.setHeader('Content-Type', ct || 'application/octet-stream');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -247,20 +289,66 @@ function fetchVidzee(cacheKey, id, s, e, forSources = false) {
     );
 }
 
+function fetchVidnest(cacheKey, id, s, e) {
+    return withTimeout(
+        jitter(600).then(() =>
+            getCached(`vidnest-${cacheKey}`, () => withRetry(() => vidnest.getStream(id, s, e))).catch(() => null)
+        ),
+        SOURCE_TIMEOUT.vidnest,
+        'vidnest'
+    );
+}
+
+function fetchVidsrc(cacheKey, id, s, e) {
+    return withTimeout(
+        jitter(700).then(() =>
+            getCached(`vidsrc-${cacheKey}`, () => withRetry(() => vidsrc.getStream(id, s, e), 2, 1000)).catch(() => null)
+        ),
+        SOURCE_TIMEOUT.vidsrc,
+        'vidsrc'
+    );
+}
+
 function wrapUrl(rawUrl, source) {
     if (!rawUrl) return null;
     const raw = typeof rawUrl === 'object' ? rawUrl.url : rawUrl;
     if (source === 'icefy') return '/api?url=' + encodeURIComponent(raw) + '&ix=1';
     if (source === 'vidzee') return '/api?url=' + encodeURIComponent(raw) + '&vz=1';
     if (source === 'vidlink') return '/api?url=' + encodeURIComponent(raw) + '&vl=1';
+    if (source === 'vidnest') return '/api?url=' + encodeURIComponent(raw) + '&vn=1';
+    if (source === 'vidsrc') return '/api?url=' + encodeURIComponent(raw) + '&vs=1';
     return raw;
+}
+
+async function verifyStream(rawUrl, source) {
+    try {
+        const headers = { 'User-Agent': getUA() };
+        if (source === 'vidlink') { headers['Referer'] = REFERER; headers['Origin'] = ORIGIN; }
+        if (source === 'vidnest') Object.assign(headers, vidnest.HEADERS);
+        if (source === 'vidsrc') Object.assign(headers, vidsrc.HEADERS);
+        if (source === 'vidzee') Object.assign(headers, VIDZEE_HLS_HEADERS);
+        const upstream = await Promise.race([
+            fetchUpstream(rawUrl, 0, headers),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+        ]);
+        if (upstream.statusCode >= 400) return false;
+        const chunks = [];
+        for await (const c of upstream) {
+            chunks.push(c);
+            if (Buffer.concat(chunks).length > 512) break;
+        }
+        const text = Buffer.concat(chunks).toString('utf8');
+        return text.trim().startsWith('#EXTM3U');
+    } catch {
+        return false;
+    }
 }
 
 async function handleHealth(res) {
     const cacheKey = 'health-550--';
     const start = { vidlink: Date.now(), icefy: Date.now(), vidzee: Date.now() };
 
-    const [vidlinkResult, icefyResult, vidzeeResult] = await Promise.allSettled([
+    const [vidlinkResult, icefyResult, vidzeeResult, vidnestResult, mdResult] = await Promise.allSettled([
         (async () => {
             const t = Date.now();
             const url = await withTimeout(
@@ -289,6 +377,22 @@ async function handleHealth(res) {
             ).catch(() => null);
             return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidzee') : null };
         })(),
+        (async () => {
+            const t = Date.now();
+            const url = await withTimeout(
+                withRetry(() => vidnest.getStream('550', null, null)),
+                SOURCE_TIMEOUT.vidnest, 'health:vidnest'
+            ).catch(() => null);
+            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidnest') : null };
+        })(),
+        (async () => {
+            const t = Date.now();
+            const url = await withTimeout(
+                withRetry(() => vidsrc.getStream('550', null, null), 2, 1000),
+                SOURCE_TIMEOUT.vidsrc, 'health:vidsrc'
+            ).catch(() => null);
+            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidsrc') : null };
+        })(),
     ]);
 
     function unwrap(r) {
@@ -298,8 +402,9 @@ async function handleHealth(res) {
     const vl = unwrap(vidlinkResult);
     const ic = unwrap(icefyResult);
     const vz = unwrap(vidzeeResult);
+    const vn = unwrap(vidnestResult);
 
-    const allOk = vl.ok && ic.ok && vz.ok;
+    const allOk = vl.ok && ic.ok && vz.ok && vn.ok;
 
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = allOk ? 200 : 207;
@@ -314,6 +419,7 @@ async function handleHealth(res) {
             vidlink: vl,
             icefy: ic,
             vidzee: vz,
+            vidnest: vn,
         }
     }, null, 2));
 }
@@ -327,22 +433,29 @@ function handleIndex(res) {
             '/api?sources=1&id=<tmdb_id>&s=<season>&e=<episode>': 'All sources for a TV episode',
             '/api?id=<tmdb_id>': 'Single best stream URL for a movie',
             '/api?id=<tmdb_id>&s=<season>&e=<episode>': 'Single best stream URL for a TV episode',
+        },
+        test: {
             '/api?test_vidlink=1&id=<tmdb_id>': 'Test VidLink source only',
             '/api?test_icefy=1&id=<tmdb_id>': 'Test Icefy source only',
             '/api?test_vidzee=1&id=<tmdb_id>': 'Test VidZee source only',
-            '/api?tmdb_movie=1&id=<tmdb_id>': 'TMDB movie metadata',
-            '/api?tmdb_show=1&id=<tmdb_id>': 'TMDB show metadata',
-            '/api?tmdb_season=1&id=<tmdb_id>&s=<season>': 'TMDB season metadata',
-            '/api?url=<encoded_url>': 'Proxy a URL (generic)',
-            '/api?url=<encoded_url>&ix=1': 'Proxy an Icefy URL',
-            '/api?url=<encoded_url>&vz=1': 'Proxy a VidZee URL',
+            '/api?test_vidnest=1&id=<tmdb_id>': 'Test VidNest source only',
+            '/api?test_vs=1&id=<tmdb_id>': 'Test VidSrc source only',
         },
         examples: {
-            fight_club_sources: '/api?sources=1&id=550',
-            fight_club_stream: '/api?id=550',
-            test_vidlink: '/api?test_vidlink=1&id=550',
-            test_icefy: '/api?test_icefy=1&id=550',
-            test_vidzee: '/api?test_vidzee=1&id=550',
+            "movies": {
+                "test_vidlink": "/api?test_vidlink=1&id=550",
+                "test_icefy": "/api?test_icefy=1&id=550",
+                "test_vidzee": "/api?test_vidzee=1&id=550",
+                "test_vidnest": "/api?test_vidnest=1&id=550",
+                "test_vidsrc": "/api?test_vs=1&id=550"
+            },
+            "shows": {
+                "test_vidlink": "/api?test_vidlink=1&id=1396&s=1&e=1",
+                "test_icefy": "/api?test_icefy=1&id=1396&s=1&e=1",
+                "test_vidzee": "/api?test_vidzee=1&id=1396&s=1&e=1",
+                "test_vidnest": "/api?test_vidnest=1&id=1396&s=1&e=1",
+                "test_vidsrc": "/api?test_vs=1&id=1396&s=1&e=1"
+            }
         }
     }, null, 2));
 }
@@ -356,6 +469,8 @@ async function handleTestSource(res, source, id, s, e) {
         if (source === 'vidlink') rawUrl = await fetchVidlink(cacheKey, id, s, e);
         else if (source === 'icefy') rawUrl = await fetchIcefy(cacheKey, id, s, e);
         else if (source === 'vidzee') rawUrl = await fetchVidzee(cacheKey, id, s, e);
+        else if (source === 'vidnest') rawUrl = await fetchVidnest(cacheKey, id, s, e);
+        else if (source === 'vidsrc') rawUrl = await fetchVidsrc(cacheKey, id, s, e);
     } catch (err) {
         error = err.message;
     }
@@ -438,24 +553,38 @@ module.exports = async (req, res) => {
         }
     }
 
-    if (q.test_vidlink || q.test_icefy || q.test_vidzee) {
-        const source = q.test_vidlink ? 'vidlink' : q.test_icefy ? 'icefy' : 'vidzee';
-        if (!q.id) { res.statusCode = 400; return res.end(JSON.stringify({ error: 'missing id' })); }
+    if (q.test_vidlink || q.test_icefy || q.test_vidzee || q.test_vidnest || q.test_md || q.test_vs) {
+        const source = q.test_vidlink ? 'vidlink' : q.test_icefy ? 'icefy' : q.test_vidzee ? 'vidzee' : q.test_vidnest ? 'vidnest' : q.test_md ? 'moviedownloader' : 'vidsrc';
         return handleTestSource(res, source, q.id, q.s, q.e);
     }
 
     if ('sources' in q) {
         try {
             const cacheKey = `${q.id}-${q.s || ''}-${q.e || ''}`;
-            const [vidlinkUrl, icefyUrl, vidzeeUrl] = await Promise.all([
+            const [vidlinkUrl, icefyUrl, vidzeeUrl, vidnestUrl, vidsrcUrl] = await Promise.all([
                 fetchVidlink(cacheKey, q.id, q.s, q.e),
                 fetchIcefy(cacheKey, q.id, q.s, q.e),
                 fetchVidzee(cacheKey, q.id, q.s, q.e, true),
+                fetchVidnest(cacheKey, q.id, q.s, q.e),
+                fetchVidsrc(cacheKey, q.id, q.s, q.e),
             ]);
-            const sources = [];
-            if (vidlinkUrl) sources.push({ url: wrapUrl(vidlinkUrl, 'vidlink') });
-            if (icefyUrl) sources.push({ url: wrapUrl(icefyUrl, 'icefy') });
-            if (vidzeeUrl) sources.push({ url: wrapUrl(vidzeeUrl, 'vidzee') });
+            const candidates = [
+                { raw: vidlinkUrl, source: 'vidlink' },
+                { raw: icefyUrl, source: 'icefy' },
+                { raw: vidzeeUrl, source: 'vidzee' },
+                { raw: vidnestUrl, source: 'vidnest' },
+                { raw: vidsrcUrl, source: 'vidsrc' },
+            ].filter(c => c.raw);
+
+            const verified = await Promise.all(
+                candidates.map(async c => {
+                    const raw = typeof c.raw === 'object' ? c.raw.url : c.raw;
+                    const ok = await verifyStream(raw, c.source);
+                    return ok ? { url: wrapUrl(c.raw, c.source) } : null;
+                })
+            );
+
+            const sources = verified.filter(Boolean);
             sources.forEach((s, i) => s.label = 'Source: ' + (i + 1));
             if (!sources.length) {
                 res.statusCode = 502;
@@ -472,9 +601,22 @@ module.exports = async (req, res) => {
     if (q.url || q.proxy) {
         try {
             const rawUrl = decodeURIComponent(q.url || q.proxy);
+            if (q.tt) {
+                const upstream = await fetchUpstream(rawUrl);
+                const chunks = [];
+                for await (const c of upstream) chunks.push(c);
+                const full = Buffer.concat(chunks);
+                const stripped = full[0] === 0x89 ? full.slice(120) : full;
+                res.setHeader('Content-Type', 'video/MP2T');
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                return res.end(stripped);
+            }
             if (q.vz) return await proxyVidzee(rawUrl, res);
             if (q.ix) return await icefy.proxyIcefy(rawUrl, res);
             if (q.vl) return await proxyVidlink(rawUrl, res);
+            if (q.vn) return await proxyVidnest(rawUrl, res);
+            if (q.vs) return await proxyVidsrc(rawUrl, res);
             return await proxy(rawUrl, res);
         } catch (e) {
             res.statusCode = 502;
@@ -505,25 +647,48 @@ module.exports = async (req, res) => {
             rawUrl = await fetchVidzee(cacheKey, q.id, q.s, q.e);
             if (rawUrl) source = 'vidzee';
         }
+        if (!rawUrl) {
+            rawUrl = await fetchVidnest(cacheKey, q.id, q.s, q.e);
+            if (rawUrl) source = 'vidnest';
+        }
+        if (!rawUrl) {
+            rawUrl = await fetchVidsrc(cacheKey, q.id, q.s, q.e);
+            if (rawUrl) source = 'vidsrc';
+        }
 
         if (!rawUrl) throw new Error('no stream');
 
-        const finalUrl = wrapUrl(rawUrl, source);
-
-        if (req.headers.accept?.includes('text/html')) {
-            const title = (meta?.title || meta?.name || 'Watch') + (q.s ? ` S${q.s}E${q.e || 1}` : '');
-            const img = 'https://image.tmdb.org/t/p/w780' + (meta?.still_path || meta?.backdrop_path || meta?.poster_path);
-            res.setHeader('Content-Type', 'text/html');
-            return res.end(`<html><head>
-<title>${title}</title>
-<meta property="og:title" content="${title}">
-<meta property="og:description" content="${meta?.overview || ''}">
-<meta property="og:image" content="${img}">
-</head></html>`);
+        let finalUrl = wrapUrl(rawUrl, source);
+        const primaryRaw = typeof rawUrl === 'object' ? rawUrl.url : rawUrl;
+        const primaryOk = await verifyStream(primaryRaw, source);
+        if (!primaryOk) {
+            const fallbacks = [
+                { fetch: () => fetchIcefy(cacheKey, q.id, q.s, q.e), source: 'icefy' },
+                { fetch: () => fetchVidzee(cacheKey, q.id, q.s, q.e), source: 'vidzee' },
+                { fetch: () => fetchVidnest(cacheKey, q.id, q.s, q.e), source: 'vidnest' },
+                { fetch: () => fetchVidsrc(cacheKey, q.id, q.s, q.e), source: 'vidsrc' },
+                { fetch: () => fetchVidlink(cacheKey, q.id, q.s, q.e), source: 'vidlink' },
+            ].filter(f => f.source !== source);
+            let found = false;
+            for (const fb of fallbacks) {
+                const fbRaw = await fb.fetch();
+                if (!fbRaw) continue;
+                const fbUrl = wrapUrl(fbRaw, fb.source);
+                const fbRawStr = typeof fbRaw === 'object' ? fbRaw.url : fbRaw;
+                const fbOk = await verifyStream(fbRawStr, fb.source);
+                if (fbOk) {
+                    rawUrl = fbRaw;
+                    source = fb.source;
+                    finalUrl = fbUrl;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) throw new Error('no playable stream');
         }
 
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ url: finalUrl, meta }));
+        res.end(JSON.stringify({ url: finalUrl, source, meta }));
     } catch (e) {
         res.statusCode = 500;
         res.end(JSON.stringify({ error: e.message }));

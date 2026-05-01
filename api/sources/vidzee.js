@@ -62,12 +62,11 @@ async function decrypt(encryptedData, decryptionKey) {
     return new TextDecoder().decode(decrypted);
 }
 
-async function fetchServer(tmdbId, serverId, type, season, episode, headers) {
-    let url = `${PLAYER_URL}/api/server?id=${tmdbId}&sr=${serverId}`;
-    if (type === 'tv') url += `&ss=${season}&ep=${episode}`;
-    const res = await fetch(url, { headers });
-    if (!res.ok) return null;
-    return res.json();
+function fetchWithTimeout(url, headers, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { headers, signal: controller.signal })
+        .finally(() => clearTimeout(timer));
 }
 
 async function getStream(id, s, e) {
@@ -76,38 +75,42 @@ async function getStream(id, s, e) {
     const episode = e || '1';
     const headers = makeHeaders(null);
 
-    const apiKeyResponse = await fetch(`${CORE_URL}/api-key`, { headers });
+    const apiKeyResponse = await fetchWithTimeout(`${CORE_URL}/api-key`, headers, 5000);
     if (!apiKeyResponse.ok) throw new Error(`VidZee API key failed: ${apiKeyResponse.status}`);
     const apiKeyText = await apiKeyResponse.text();
 
-    const [decKey, serverResults] = await Promise.all([
-        deriveKey(apiKeyText),
-        Promise.allSettled(
-            Array.from({ length: 14 }, (_, i) => fetchServer(id, i, type, season, episode, headers))
-        )
-    ]);
-
+    const decKey = await deriveKey(apiKeyText);
     if (!decKey) throw new Error('VidZee: failed to derive key');
 
-    const responses = serverResults
-        .filter(r => r.status === 'fulfilled' && r.value && Array.isArray(r.value.url))
-        .map(r => r.value);
+    for (let sr = 0; sr < 14; sr++) {
+        let data;
+        try {
+            let url = `${PLAYER_URL}/api/server?id=${id}&sr=${sr}`;
+            if (type === 'tv') url += `&ss=${season}&ep=${episode}`;
+            const res = await fetchWithTimeout(url, headers, 6000);
+            if (!res.ok) continue;
+            data = await res.json();
+        } catch {
+            continue;
+        }
 
-    if (!responses.length) throw new Error('VidZee: no servers returned valid data');
+        if (!data || data.error || !Array.isArray(data.url) || !data.url.length) continue;
 
-    const decryptedLinks = (await Promise.all(
-        responses.flatMap(r => r.url.map(u => decrypt(u.link, decKey)))
-    )).filter(l => l && l.startsWith('http'));
-
-    const uniqueLinks = [...new Set(decryptedLinks)];
-    if (!uniqueLinks.length) throw new Error('VidZee: decryption produced no valid URLs');
-
-    for (const link of uniqueLinks) {
-        const res = await fetch(link, { headers: hlsHeaders });
-        if (res.ok) return link;
+        for (const entry of data.url) {
+            if (!entry.link) continue;
+            try {
+                const decrypted = await decrypt(entry.link, decKey);
+                if (decrypted && decrypted.startsWith('http')) {
+                    const check = await fetchWithTimeout(decrypted, hlsHeaders, 5000);
+                    if (check.ok) return decrypted;
+                }
+            } catch {
+                continue;
+            }
+        }
     }
 
-    throw new Error(`VidZee: all ${uniqueLinks.length} decrypted URLs returned non-200`);
+    throw new Error('VidZee: no valid stream found');
 }
 
 module.exports = { getStream, hlsHeaders, PLAYER_URL };

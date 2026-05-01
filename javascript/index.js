@@ -196,10 +196,21 @@ if (!blocked) {
                         });
                     play(result.url, true, id);
                 }
-            }).catch(function () {
+            }).catch(function (err) {
+                var errText = document.querySelector('.err-text');
+                if (errText) errText.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Stream Unavailable';
+                var errSub = document.querySelector('.err-sub');
+                if (!errSub) {
+                    errText && errText.insertAdjacentHTML('afterend', '<div class="err-sub">No working sources were found for this title. It may be unavailable or the ID may be incorrect.</div>');
+                }
                 document.getElementById('error-screen').classList.add('show');
             });
     } else {
+        var errText = document.querySelector('.err-text');
+        if (errText) {
+            errText.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> No ID Provided';
+            document.querySelector('.err-text + *') && (document.querySelector('.err-text').insertAdjacentHTML('afterend', '<div class="err-sub">Add an <code>?id=</code> parameter to the URL — e.g. <code>?id=550</code> for a movie or <code>?id=1396&s=1&e=1</code> for a show.</div>'));
+        }
         document.getElementById('error-screen').classList.add('show');
     }
 }
@@ -2128,20 +2139,7 @@ function play(raw, skipProxy, videoId) {
     var errRetryBtn = document.getElementById('err-retry-btn');
     if (errRetryBtn) {
         errRetryBtn.addEventListener('click', function () {
-            document.getElementById('error-screen').classList.remove('show');
-            var endpoint = s
-                ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
-                : '/api?sources=1&id=' + id;
-            fetch(endpoint)
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (!d.sources || !d.sources.length) throw new Error('no sources');
-                    var first = d.sources[0];
-                    play(first.url, false, id);
-                })
-                .catch(function () {
-                    document.getElementById('error-screen').classList.add('show');
-                });
+            location.reload();
         });
     }
 

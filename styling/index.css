@@ -137,6 +137,25 @@ body {
     font-size: 13px;
 }
 
+.err-sub {
+    font-size: 13px;
+    color: var(--white-45);
+    margin-top: 10px;
+    margin-bottom: 4px;
+    max-width: 320px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.err-sub code {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--white-92);
+}
+
 @keyframes lFadeUp {
     from {
         opacity: 0;
@@ -1422,6 +1441,8 @@ video.ready {
 
 .settings-content-inner {
     overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
 }
 
 .settings-list {
@@ -1670,10 +1691,6 @@ video.ready {
     justify-content: center;
     color: var(--white-92);
     background-color: var(--white-08);
-}
-
-.sub-customize-title {
-    padding: 0 26px;
 }
 
 .settings-range {
