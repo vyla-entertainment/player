@@ -9,6 +9,10 @@
 <body>
 
     <div id="loader">
+        <video id="loader-bg" autoplay loop muted playsinline controls="false" disablepictureinpicture
+            controlslist="nodownload nofullscreen noremoteplayback"
+            src="https://videos.pexels.com/video-files/32399542/13820720_2560_1440_30fps.mp4">
+        </video>
         <span id="loader-msg"></span>
         <div id="loader-sources-carousel">
             <div id="loader-sources-track"></div>
@@ -20,12 +24,6 @@
 
         <div id="title-bar">
             <span id="title-text"></span>
-            <div id="source-title-wrap" style="position:relative;align-self:flex-start;">
-                <span id="source-sub-label"
-                    style="font-size:11px;font-weight:600;color:var(--white-45);letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:5px;">Source
-                    <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i></span>
-                <div id="source-dropdown" class="source-dropdown"></div>
-            </div>
             <a href="https://vyla.pages.dev/discord" target="_blank" id="discord-title-btn"
                 style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--white-45);letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:color 0.2s ease;">
                 <i class="fa-brands fa-discord" style="font-size:14px;"></i>
@@ -83,219 +81,6 @@
                     <div id="settings-btn-wrap">
                         <button id="btn-settings" class="ctrl-btn" title="Settings"><i
                                 class="fa-solid fa-cog"></i></button>
-                        <div id="settings-panel">
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-header">
-                                    <div class="smh-left"><i class="fa-solid fa-clock"></i> Playback</div>
-                                    <div class="smh-right"><span class="smh-label" id="lbl-speed">Normal</span> <i
-                                            class="fa-solid fa-chevron-right chevron"></i></div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list" id="speed-opts">
-                                            <div class="settings-list-item" data-speed="0.25"><i
-                                                    class="fa-regular fa-circle"></i> 0.25x</div>
-                                            <div class="settings-list-item" data-speed="0.5"><i
-                                                    class="fa-regular fa-circle"></i> 0.5x</div>
-                                            <div class="settings-list-item" data-speed="0.75"><i
-                                                    class="fa-regular fa-circle"></i> 0.75x</div>
-                                            <div class="settings-list-item active" data-speed="1"><i
-                                                    class="fa-regular fa-circle-dot"></i>
-                                                Normal</div>
-                                            <div class="settings-list-item" data-speed="1.25"><i
-                                                    class="fa-regular fa-circle"></i> 1.25x</div>
-                                            <div class="settings-list-item" data-speed="1.5"><i
-                                                    class="fa-regular fa-circle"></i> 1.5x</div>
-                                            <div class="settings-list-item" data-speed="1.75"><i
-                                                    class="fa-regular fa-circle"></i> 1.75x</div>
-                                            <div class="settings-list-item" data-speed="2"><i
-                                                    class="fa-regular fa-circle"></i> 2x</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-header">
-                                    <div class="smh-left"><i class="fa-solid fa-video"></i> Video</div>
-                                    <div class="smh-right"><span class="smh-label" id="lbl-video">Default</span> <i
-                                            class="fa-solid fa-chevron-right chevron"></i></div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list">
-                                            <div class="settings-list-item">
-                                                <span>Brightness</span>
-                                                <input type="range" id="vid-brightness" class="settings-range" min="0"
-                                                    max="200" value="100">
-                                            </div>
-                                            <div class="settings-list-item">
-                                                <span>Contrast</span>
-                                                <input type="range" id="vid-contrast" class="settings-range" min="0"
-                                                    max="200" value="100">
-                                            </div>
-                                            <div class="settings-list-item">
-                                                <span>Saturation</span>
-                                                <input type="range" id="vid-saturate" class="settings-range" min="0"
-                                                    max="200" value="100">
-                                            </div>
-                                        </div>
-                                        <div class="sub-customize-title">Aspect Ratio</div>
-                                        <div class="settings-list" id="ratio-opts">
-                                            <div class="settings-list-item active" data-ratio="contain"><i
-                                                    class="fa-regular fa-circle-dot"></i> Fit
-                                            </div>
-                                            <div class="settings-list-item" data-ratio="cover"><i
-                                                    class="fa-regular fa-circle"></i> Fill</div>
-                                            <div class="settings-list-item" data-ratio="fill"><i
-                                                    class="fa-regular fa-circle"></i> Stretch</div>
-                                        </div>
-                                        <div class="settings-list">
-                                            <div class="settings-list-item" id="btn-reset-video">
-                                                <i class="fa-solid fa-rotate-left"></i> Reset to Default
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-header">
-                                    <div class="smh-left"><i class="fa-solid fa-sliders"></i> Quality</div>
-                                    <div class="smh-right"><span class="smh-label" id="lbl-quality">Auto</span> <i
-                                            class="fa-solid fa-chevron-right chevron"></i></div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list" id="quality-opts">
-                                            <div class="settings-list-item" data-quality="1080p">1080p</div>
-                                            <div class="settings-list-item" data-quality="720p">720p</div>
-                                            <div class="settings-list-item" data-quality="480p">480p</div>
-                                            <div class="settings-list-item" data-quality="360p">360p</div>
-                                            <div class="settings-list-item" data-quality="240p">240p</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-header">
-                                    <div class="smh-left"><i class="fa-solid fa-closed-captioning"></i> Subtitles</div>
-                                    <div class="smh-right"><span class="smh-label" id="lbl-subtitle">Off</span> <i
-                                            class="fa-solid fa-chevron-right chevron"></i></div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list" id="subtitle-opts">
-                                            <div class="settings-list-item active" data-track="-1"><i
-                                                    class="fa-regular fa-circle-dot"></i> Off
-                                            </div>
-                                        </div>
-
-                                        <div id="sub-customize" style="display:none;">
-                                            <div class="sub-customize-title">Caption Style</div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Font</span>
-                                                <div class="select-wrapper">
-                                                    <select id="sub-font-select" class="settings-select">
-                                                        <option value="sans">Sans-Serif</option>
-                                                        <option value="serif">Serif</option>
-                                                        <option value="mono">Monospace</option>
-                                                    </select>
-                                                    <i class="fa-solid fa-chevron-down"></i>
-                                                </div>
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Size</span>
-                                                <div class="select-wrapper">
-                                                    <select id="sub-size-select" class="settings-select">
-                                                        <option value="small">Small</option>
-                                                        <option value="medium">Medium</option>
-                                                        <option value="large">Large</option>
-                                                        <option value="xlarge">Extra Large</option>
-                                                        <option value="xxlarge">Huge</option>
-                                                    </select>
-                                                    <i class="fa-solid fa-chevron-down"></i>
-                                                </div>
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Text Color</span>
-                                                <div class="color-picker-wrapper">
-                                                    <input type="color" id="sub-color-input" class="settings-color"
-                                                        value="#ffffff">
-                                                </div>
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Background Color</span>
-                                                <div class="color-picker-wrapper">
-                                                    <input type="color" id="sub-bg-color-input" class="settings-color"
-                                                        value="#000000">
-                                                </div>
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Background Opacity</span>
-                                                <div class="select-wrapper">
-                                                    <select id="sub-bg-opacity-select" class="settings-select">
-                                                        <option value="0">0%</option>
-                                                        <option value="0.25">25%</option>
-                                                        <option value="0.5">50%</option>
-                                                        <option value="0.75" selected>75%</option>
-                                                        <option value="1">100%</option>
-                                                    </select>
-                                                    <i class="fa-solid fa-chevron-down"></i>
-                                                </div>
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Position</span>
-                                                <div class="select-wrapper">
-                                                    <select id="sub-pos-select" class="settings-select">
-                                                        <option value="top">Top</option>
-                                                        <option value="high">High</option>
-                                                        <option value="mid">Mid</option>
-                                                        <option value="low">Low</option>
-                                                        <option value="bottom">Bottom</option>
-                                                    </select>
-                                                    <i class="fa-solid fa-chevron-down"></i>
-                                                </div>
-                                            </div>
-                                            <div class="settings-row">
-                                                <span class="settings-row-label">Edge Effect</span>
-                                                <div class="select-wrapper">
-                                                    <select id="sub-edge-select" class="settings-select">
-                                                        <option value="shadow">Shadow</option>
-                                                        <option value="outline">Outline</option>
-                                                        <option value="uniform">Uniform</option>
-                                                        <option value="none">None</option>
-                                                    </select>
-                                                    <i class="fa-solid fa-chevron-down"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="settings-menu-group">
-                                <div class="settings-menu-subheader">
-                                    <div class="smh-left"><i class="fa-brands fa-discord"></i> Community</div>
-                                </div>
-                                <div class="settings-menu-content">
-                                    <div class="settings-content-inner">
-                                        <div class="settings-list">
-                                            <a href="https://vyla.pages.dev/discord" target="_blank"
-                                                class="settings-list-item"
-                                                style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px;">
-                                                <i class="fa-brands fa-discord"
-                                                    style="font-size:16px;color:#5865F2;"></i>
-                                                <span>Join Discord</span>
-                                                <i class="fa-solid fa-arrow-up-right-from-square"
-                                                    style="margin-left:auto;font-size:12px;color:var(--white-45);"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     <button id="btn-pip" class="ctrl-btn"><i class="fa-solid fa-window-restore"></i></button>
                     <button id="btn-fullscreen" class="ctrl-btn"><i class="fa-solid fa-expand"></i></button>
@@ -306,7 +91,6 @@
         <div id="error-screen">
             <div class="err-text">Source Not Found</div>
             <div class="err-sub"></div>
-            <button class="err-retry" id="err-retry-btn"><i class="fa-solid fa-rotate-right"></i> Try Again</button>
         </div>
 
         <div id="subtitle-display"><span id="subtitle-text"></span></div>
@@ -345,6 +129,262 @@
     </div>
 
     <div id="now-playing-toast"></div>
+
+    <div id="settings-overlay-backdrop"></div>
+    <div id="settings-modal-wrap">
+        <div id="settings-panel">
+            <button id="landscape-back-btn">
+                <i class="fa-solid fa-arrow-left"></i> Back to home
+            </button>
+            <div id="settings-view-main" class="settings-view active">
+                <div class="settings-grid">
+                    <div class="settings-tile" data-nav="quality">
+                        <span class="tile-label">Quality</span>
+                        <span class="tile-value" id="lbl-quality">Auto</span>
+                    </div>
+                    <div class="settings-tile" data-nav="sources">
+                        <span class="tile-label">Source</span>
+                        <span class="tile-value" id="lbl-source">Auto</span>
+                    </div>
+                    <div class="settings-tile" data-nav="speed">
+                        <span class="tile-label">Playback</span>
+                        <span class="tile-value" id="lbl-speed">Normal</span>
+                    </div>
+                    <div class="settings-tile" data-nav="subtitle">
+                        <span class="tile-label">Subtitles</span>
+                        <span class="tile-value" id="lbl-subtitle">Off</span>
+                    </div>
+                </div>
+                <div class="settings-main-list">
+                    <div class="settings-main-item" id="main-pip-btn">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Download</span>
+                    </div>
+                    <div class="settings-main-divider"></div>
+                    <div class="settings-main-item settings-main-toggle-row">
+                        <i class="fa-solid fa-closed-captioning"></i>
+                        <span>Enable Subtitles</span>
+                        <div class="settings-toggle" id="subtitle-toggle">
+                            <div class="settings-toggle-knob"></div>
+                        </div>
+                    </div>
+                    <div class="settings-main-item" data-nav="speed" id="main-playback-btn">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Playback settings</span>
+                        <i class="fa-solid fa-chevron-right settings-main-chevron"></i>
+                    </div>
+                    <div class="settings-main-item" data-nav="video" id="main-video-btn">
+                        <i class="fa-solid fa-film"></i>
+                        <span>Video settings</span>
+                        <i class="fa-solid fa-chevron-right settings-main-chevron"></i>
+                    </div>
+                    <a href="https://vyla.pages.dev/discord" target="_blank"
+                        class="settings-main-item settings-main-link">
+                        <i class="fa-brands fa-discord" style="color:var(--white-92);"></i>
+                        <span>Discord</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square settings-main-chevron"></i>
+                    </a>
+                </div>
+            </div>
+            <div id="settings-view-speed" class="settings-view">
+                <div class="settings-view-header">
+                    <button class="settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span class="settings-view-title">Playback Speed</span>
+                </div>
+                <div class="settings-list" id="speed-opts">
+                    <div class="settings-list-item" data-speed="0.25"><i class="fa-regular fa-circle"></i> 0.25x</div>
+                    <div class="settings-list-item" data-speed="0.5"><i class="fa-regular fa-circle"></i> 0.5x</div>
+                    <div class="settings-list-item" data-speed="0.75"><i class="fa-regular fa-circle"></i> 0.75x</div>
+                    <div class="settings-list-item active" data-speed="1"><i class="fa-regular fa-circle-dot"></i>
+                        Normal</div>
+                    <div class="settings-list-item" data-speed="1.25"><i class="fa-regular fa-circle"></i> 1.25x</div>
+                    <div class="settings-list-item" data-speed="1.5"><i class="fa-regular fa-circle"></i> 1.5x</div>
+                    <div class="settings-list-item" data-speed="1.75"><i class="fa-regular fa-circle"></i> 1.75x</div>
+                    <div class="settings-list-item" data-speed="2"><i class="fa-regular fa-circle"></i> 2x</div>
+                </div>
+            </div>
+            <div id="settings-view-video" class="settings-view">
+                <div class="settings-view-header">
+                    <button class="settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span class="settings-view-title">Video</span>
+                </div>
+                <div class="settings-list">
+                    <div class="settings-list-item"><span>Brightness</span><input type="range" id="vid-brightness"
+                            class="settings-range" min="0" max="200" value="100"></div>
+                    <div class="settings-list-item"><span>Contrast</span><input type="range" id="vid-contrast"
+                            class="settings-range" min="0" max="200" value="100"></div>
+                    <div class="settings-list-item"><span>Saturation</span><input type="range" id="vid-saturate"
+                            class="settings-range" min="0" max="200" value="100"></div>
+                </div>
+                <div class="sub-customize-title">Aspect Ratio</div>
+                <div class="settings-list" id="ratio-opts">
+                    <div class="settings-list-item active" data-ratio="contain"><i class="fa-regular fa-circle-dot"></i>
+                        Fit
+                    </div>
+                    <div class="settings-list-item" data-ratio="cover"><i class="fa-regular fa-circle"></i> Fill</div>
+                    <div class="settings-list-item" data-ratio="fill"><i class="fa-regular fa-circle"></i> Stretch</div>
+                </div>
+                <div class="settings-list">
+                    <div class="settings-list-item" id="btn-reset-video"><i class="fa-solid fa-rotate-left"></i> Reset
+                        to
+                        Default</div>
+                </div>
+            </div>
+            <div id="settings-view-quality" class="settings-view">
+                <div class="settings-view-header">
+                    <button class="settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span class="settings-view-title">Quality</span>
+                </div>
+                <div class="settings-list" id="quality-opts"></div>
+            </div>
+            <div id="settings-view-sources" class="settings-view">
+                <div class="settings-view-header">
+                    <button class="settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span class="settings-view-title">Source</span>
+                </div>
+                <div class="settings-list" id="sources-opts"></div>
+            </div>
+            <div id="settings-view-subtitle" class="settings-view">
+                <div class="settings-view-header" style="justify-content:space-between;" id="sub-main-header">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <button class="settings-back-btn" id="sub-main-back-btn"><i
+                                class="fa-solid fa-arrow-left"></i></button>
+                        <span class="settings-view-title" id="sub-view-title">Subtitles</span>
+                    </div>
+                    <button id="sub-customize-open-btn" class="sub-hdr-customize-btn">Customize</button>
+                </div>
+                <div id="sub-lang-view">
+                    <div class="sub-special-list">
+                        <div class="sub-special-item sub-off-item active-sub-item" data-sub="off">
+                            <span>Off</span>
+                            <i class="fa-solid fa-circle-check sub-active-check"></i>
+                        </div>
+                        <div class="sub-special-item" data-sub="auto">Auto select</div>
+                        <div class="sub-special-item" data-sub="upload">Drop or upload file</div>
+                        <div class="sub-special-item" data-sub="paste">Paste subtitle data</div>
+                    </div>
+                    <div class="sub-lang-divider"></div>
+                    <div class="sub-lang-list" id="subtitle-opts"></div>
+                </div>
+                <div id="sub-custom-view" style="display:none;">
+                    <div class="sub-custom-body">
+                        <div class="sub-custom-row">
+                            <div class="sub-custom-row-left">
+                                <span class="sub-custom-label">Native video subtitles</span>
+                                <span class="sub-custom-hint">Broadcast subtitles for native fullscreen and PiP</span>
+                            </div>
+                            <div class="settings-toggle" id="native-sub-toggle">
+                                <div class="settings-toggle-knob"></div>
+                            </div>
+                        </div>
+                        <div class="sub-custom-section">
+                            <span class="sub-custom-section-lbl">Subtitle delay</span>
+                            <input type="range" id="sub-delay-range" class="sub-blue-slider" min="-10" max="10"
+                                step="0.1" value="0">
+                            <div class="sub-delay-row">
+                                <button class="sub-delay-side-btn" id="sub-delay-heard"><i
+                                        class="fa-solid fa-chevron-left"></i>
+                                    Heard audio</button>
+                                <span class="sub-delay-val-badge" id="sub-delay-val">0.0s</span>
+                                <button class="sub-delay-side-btn" id="sub-delay-saw">Saw caption <i
+                                        class="fa-solid fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-row">
+                            <span class="sub-custom-label">Fix capitalization</span>
+                            <div class="settings-toggle" id="sub-fix-caps-toggle">
+                                <div class="settings-toggle-knob"></div>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-section">
+                            <span class="sub-custom-section-lbl">Background opacity</span>
+                            <div class="sub-slider-row">
+                                <input type="range" id="sub-bg-opacity-range" class="sub-blue-slider" min="0" max="100"
+                                    value="75">
+                                <span class="sub-slider-val" id="sub-bg-opacity-val">75%</span>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-row">
+                            <div class="sub-custom-row-left">
+                                <span class="sub-custom-label">Background blur</span>
+                                <span class="sub-custom-hint">Disabling caption background blur may fix some flickering
+                                    issues</span>
+                            </div>
+                            <div class="settings-toggle on" id="sub-bg-blur-toggle">
+                                <div class="settings-toggle-knob"></div>
+                            </div>
+                        </div>
+                        <div class="sub-custom-section">
+                            <span class="sub-custom-section-lbl">Background blur intensity</span>
+                            <div class="sub-slider-row">
+                                <input type="range" id="sub-blur-intensity-range" class="sub-blue-slider" min="0"
+                                    max="100" value="50">
+                                <span class="sub-slider-val" id="sub-blur-intensity-val">50%</span>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-section">
+                            <span class="sub-custom-section-lbl">Text size</span>
+                            <div class="sub-slider-row">
+                                <input type="range" id="sub-text-size-range" class="sub-blue-slider" min="50" max="200"
+                                    value="100">
+                                <span class="sub-slider-val" id="sub-text-size-val">100%</span>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-row sub-custom-row-between">
+                            <span class="sub-custom-label">Text style</span>
+                            <div class="select-wrapper" style="min-width:110px;">
+                                <select id="sub-text-style-select" class="settings-select">
+                                    <option value="sans">Default</option>
+                                    <option value="serif">Serif</option>
+                                    <option value="mono">Mono</option>
+                                    <option value="cursive">Cursive</option>
+                                </select>
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-row">
+                            <span class="sub-custom-label">Bold text</span>
+                            <div class="settings-toggle" id="sub-bold-toggle">
+                                <div class="settings-toggle-knob"></div>
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-row sub-custom-row-between">
+                            <span class="sub-custom-label">Color</span>
+                            <div class="sub-color-swatches">
+                                <button class="sub-swatch sub-swatch-active" data-color="#ffffff"
+                                    style="background:#fff;"><i class="fa-solid fa-check"
+                                        style="color:#000;"></i></button>
+                                <button class="sub-swatch" data-color="#7b8cde" style="background:#7b8cde;"></button>
+                                <button class="sub-swatch" data-color="#e8d44d" style="background:#e8d44d;"></button>
+                                <button class="sub-swatch" data-color="#4caf50" style="background:#4caf50;"></button>
+                                <button class="sub-swatch sub-swatch-brush" data-color="custom"
+                                    style="background:#2a2a2a;"><i class="fa-solid fa-paint-brush"
+                                        style="color:var(--white-60);font-size:12px;"></i></button>
+                                <input type="color" id="sub-custom-color-picker" value="#ffffff" style="display:none;">
+                            </div>
+                        </div>
+                        <div class="sub-custom-divider"></div>
+                        <div class="sub-custom-row sub-custom-row-between">
+                            <span class="sub-custom-label">Vertical position</span>
+                            <div class="sub-pos-btns">
+                                <button class="sub-pos-btn sub-pos-active" data-pos="default">Default</button>
+                                <button class="sub-pos-btn" data-pos="high">High</button>
+                                <button class="sub-reset-btn" id="sub-custom-reset-btn">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button id="settings-close-btn">Close</button>
+    </div>
 
     <script src="javascript/index.js"></script>
 </body>
