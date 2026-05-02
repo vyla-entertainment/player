@@ -8,6 +8,7 @@ const icefy = require('./sources/icefy');
 const vidzee = require('./sources/vidzee');
 const vidnest = require('./sources/vidnest');
 const vidsrc = require('./sources/vidsrc');
+const vidrock = require('./sources/vidrock');
 
 const REFERER = vidlink.REFERER;
 const ORIGIN = vidlink.ORIGIN;
@@ -33,6 +34,7 @@ const SOURCE_TIMEOUT = {
     vidzee_sources: 5000,
     vidnest: 20000,
     vidsrc: 25000,
+    vidrock: 20000,
 };
 
 function getCached(key, fn) {
@@ -239,40 +241,47 @@ async function proxyVidsrc(url, res) {
     upstream.pipe(res);
 }
 
-async function proxyIcefy(url, res) {
-    const upstream = await fetchRaw(url);
-
-    if (upstream.statusCode >= 400) {
-        res.statusCode = 502;
-        return res.end('icefy upstream: ' + upstream.statusCode);
+function unwrapWorkersProxyUrl(url) {
+    try {
+        const match = url.match(/^https:\/\/[^/]+\.workers\.dev\/(https?%3A%2F%2F.+|https?:\/\/.+)$/);
+        if (!match) return url;
+        let inner = match[1];
+        try { inner = decodeURIComponent(inner); } catch { }
+        try { inner = decodeURIComponent(inner); } catch { }
+        return inner;
+    } catch {
+        return url;
     }
+}
 
+async function proxyVidrock(url, res) {
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6884.98 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': 'https://lok-lok.cc',
+        'Referer': 'https://lok-lok.cc/',
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'sec-ch-ua': '"Chromium";v="134", "Google Chrome";v="134", "Not:A-Brand";v="99"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+    };
+    const upstream = await fetchUpstream(url, 0, headers);
     const ct = (upstream.headers['content-type'] || '').toLowerCase();
-
-    const isM3u8 =
-        ct.includes('mpegurl') ||
-        ct.includes('m3u8') ||
-        /\.m3u8?(\?|$)/i.test(url);
-
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
     if (isM3u8) {
         const chunks = [];
         for await (const c of upstream) chunks.push(c);
         const body = Buffer.concat(chunks).toString('utf8');
-
-        if (!body.trim().startsWith('#EXTM3U')) {
-            res.statusCode = 502;
-            return res.end('icefy: not a valid m3u8');
-        }
-
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
         res.setHeader('Access-Control-Allow-Origin', '*');
-        return res.end(rewriteM3u8(body, url, '&ix=1'));
+        return res.end(rewriteM3u8(body, url, '&vr=1'));
     }
-
     res.setHeader('Content-Type', ct || 'application/octet-stream');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
-
     upstream.pipe(res);
 }
 
@@ -346,6 +355,16 @@ function fetchVidsrc(cacheKey, id, s, e) {
     );
 }
 
+function fetchVidrock(cacheKey, id, s, e) {
+    return withTimeout(
+        jitter(800).then(() =>
+            getCached(`vidrock-${cacheKey}`, () => withRetry(() => vidrock.getStream(id, s, e))).catch(() => null)
+        ),
+        SOURCE_TIMEOUT.vidrock,
+        'vidrock'
+    );
+}
+
 function wrapUrl(rawUrl, source) {
     if (!rawUrl) return null;
     const raw = typeof rawUrl === 'object' ? rawUrl.url : rawUrl;
@@ -354,6 +373,7 @@ function wrapUrl(rawUrl, source) {
     if (source === 'vidlink') return '/api?url=' + encodeURIComponent(raw) + '&vl=1';
     if (source === 'vidnest') return '/api?url=' + encodeURIComponent(raw) + '&vn=1';
     if (source === 'vidsrc') return '/api?url=' + encodeURIComponent(raw) + '&vs=1';
+    if (source === 'vidrock') return '/api?url=' + encodeURIComponent(raw) + '&vr=1';
     return raw;
 }
 
@@ -365,6 +385,7 @@ async function verifyStream(rawUrl, source) {
         if (source === 'vidnest') Object.assign(headers, vidnest.HEADERS);
         if (source === 'vidsrc') Object.assign(headers, vidsrc.HEADERS);
         if (source === 'vidzee') Object.assign(headers, VIDZEE_HLS_HEADERS);
+        if (source === 'vidrock') Object.assign(headers, vidrock.HEADERS);
         const upstream = await Promise.race([
             fetchUpstream(rawUrl, 0, headers),
             new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
@@ -384,9 +405,9 @@ async function verifyStream(rawUrl, source) {
 
 async function handleHealth(res) {
     const cacheKey = 'health-550--';
-    const start = { vidlink: Date.now(), icefy: Date.now(), vidzee: Date.now() };
+    const start = { vidlink: Date.now(), icefy: Date.now(), vidzee: Date.now(), vidsrc: Date.now(), vidrock: Date.now() };
 
-    const [vidlinkResult, icefyResult, vidzeeResult, vidnestResult, mdResult] = await Promise.allSettled([
+    const [vidlinkResult, icefyResult, vidzeeResult, vidnestResult, vidsrcResult, vidrockResult] = await Promise.allSettled([
         (async () => {
             const t = Date.now();
             const url = await withTimeout(
@@ -431,6 +452,22 @@ async function handleHealth(res) {
             ).catch(() => null);
             return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidsrc') : null };
         })(),
+        (async () => {
+            const t = Date.now();
+            const url = await withTimeout(
+                withRetry(() => vidsrc.getStream('550', null, null), 2, 1000),
+                SOURCE_TIMEOUT.vidsrc, 'health:vidsrc'
+            ).catch(() => null);
+            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidsrc') : null };
+        })(),
+        (async () => {
+            const t = Date.now();
+            const url = await withTimeout(
+                withRetry(() => vidrock.getStream('550', null, null), 2, 1000),
+                SOURCE_TIMEOUT.vidrock, 'health:vidrock'
+            ).catch(() => null);
+            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidrock') : null };
+        })(),
     ]);
 
     function unwrap(r) {
@@ -441,8 +478,10 @@ async function handleHealth(res) {
     const ic = unwrap(icefyResult);
     const vz = unwrap(vidzeeResult);
     const vn = unwrap(vidnestResult);
+    const vs = unwrap(vidsrcResult);
+    const vr = unwrap(vidrockResult);
 
-    const allOk = vl.ok && ic.ok && vz.ok && vn.ok;
+    const allOk = vl.ok && ic.ok && vz.ok && vn.ok && vs.ok && vr.ok;
 
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = allOk ? 200 : 207;
@@ -458,6 +497,8 @@ async function handleHealth(res) {
             icefy: ic,
             vidzee: vz,
             vidnest: vn,
+            vidsrc: vs,
+            vidrock: vr,
         }
     }, null, 2));
 }
@@ -485,14 +526,16 @@ function handleIndex(res) {
                 "test_icefy": "/api?test_icefy=1&id=550",
                 "test_vidzee": "/api?test_vidzee=1&id=550",
                 "test_vidnest": "/api?test_vidnest=1&id=550",
-                "test_vidsrc": "/api?test_vs=1&id=550"
+                "test_vidsrc": "/api?test_vs=1&id=550",
+                "test_vidrock": "/api?test_vr=1&id=550"
             },
             "shows": {
                 "test_vidlink": "/api?test_vidlink=1&id=1396&s=1&e=1",
                 "test_icefy": "/api?test_icefy=1&id=1396&s=1&e=1",
                 "test_vidzee": "/api?test_vidzee=1&id=1396&s=1&e=1",
                 "test_vidnest": "/api?test_vidnest=1&id=1396&s=1&e=1",
-                "test_vidsrc": "/api?test_vs=1&id=1396&s=1&e=1"
+                "test_vidsrc": "/api?test_vs=1&id=1396&s=1&e=1",
+                "test_vidrock": "/api?test_vr=1&id=1396&s=1&e=1"
             }
         }
     }, null, 2));
@@ -509,6 +552,7 @@ async function handleTestSource(res, source, id, s, e) {
         else if (source === 'vidzee') rawUrl = await fetchVidzee(cacheKey, id, s, e);
         else if (source === 'vidnest') rawUrl = await fetchVidnest(cacheKey, id, s, e);
         else if (source === 'vidsrc') rawUrl = await fetchVidsrc(cacheKey, id, s, e);
+        else if (source === 'vidrock') rawUrl = await fetchVidrock(cacheKey, id, s, e);
     } catch (err) {
         error = err.message;
     }
@@ -591,19 +635,20 @@ module.exports = async (req, res) => {
         }
     }
 
-    if (q.test_vidlink || q.test_icefy || q.test_vidzee || q.test_vidnest || q.test_md || q.test_vs) {
-        const source = q.test_vidlink ? 'vidlink' : q.test_icefy ? 'icefy' : q.test_vidzee ? 'vidzee' : q.test_vidnest ? 'vidnest' : q.test_md ? 'moviedownloader' : 'vidsrc';
+    if (q.test_vidlink || q.test_icefy || q.test_vidzee || q.test_vidnest || q.test_md || q.test_vs || q.test_vr) {
+        const source = q.test_vidlink ? 'vidlink' : q.test_icefy ? 'icefy' : q.test_vidzee ? 'vidzee' : q.test_vidnest ? 'vidnest' : q.test_md ? 'moviedownloader' : q.test_vs ? 'vidsrc' : 'vidrock';
         return handleTestSource(res, source, q.id, q.s, q.e);
     }
 
     if ('sources' in q) {
         try {
             const cacheKey = `${q.id}-${q.s || ''}-${q.e || ''}`;
-            const [vidlinkUrl, icefyUrl, vidzeeUrl, vidnestUrl, vidsrcUrl] = await Promise.all([
+            const [vidlinkUrl, icefyUrl, vidzeeUrl, vidnestUrl, vidrockUrl, vidsrcUrl] = await Promise.all([
                 fetchVidlink(cacheKey, q.id, q.s, q.e),
                 fetchIcefy(cacheKey, q.id, q.s, q.e),
                 fetchVidzee(cacheKey, q.id, q.s, q.e, true),
                 fetchVidnest(cacheKey, q.id, q.s, q.e),
+                fetchVidrock(cacheKey, q.id, q.s, q.e),
                 fetchVidsrc(cacheKey, q.id, q.s, q.e),
             ]);
             const candidates = [
@@ -611,6 +656,7 @@ module.exports = async (req, res) => {
                 { raw: icefyUrl, source: 'icefy' },
                 { raw: vidzeeUrl, source: 'vidzee' },
                 { raw: vidnestUrl, source: 'vidnest' },
+                { raw: vidrockUrl, source: 'vidrock' },
                 { raw: vidsrcUrl, source: 'vidsrc' },
             ].filter(c => c.raw);
 
@@ -669,6 +715,7 @@ module.exports = async (req, res) => {
             if (q.vl) return await proxyVidlink(rawUrl, res);
             if (q.vn) return await proxyVidnest(rawUrl, res);
             if (q.vs) return await proxyVidsrc(rawUrl, res);
+            if (q.vr) return await proxyVidrock(rawUrl, res);
             return await proxy(rawUrl, res);
         } catch (e) {
             res.statusCode = 502;
@@ -707,6 +754,10 @@ module.exports = async (req, res) => {
             rawUrl = await fetchVidsrc(cacheKey, q.id, q.s, q.e);
             if (rawUrl) source = 'vidsrc';
         }
+        if (!rawUrl) {
+            rawUrl = await fetchVidrock(cacheKey, q.id, q.s, q.e);
+            if (rawUrl) source = 'vidrock';
+        }
 
         if (!rawUrl) throw new Error('no stream');
 
@@ -719,6 +770,7 @@ module.exports = async (req, res) => {
                 { fetch: () => fetchVidzee(cacheKey, q.id, q.s, q.e), source: 'vidzee' },
                 { fetch: () => fetchVidnest(cacheKey, q.id, q.s, q.e), source: 'vidnest' },
                 { fetch: () => fetchVidsrc(cacheKey, q.id, q.s, q.e), source: 'vidsrc' },
+                { fetch: () => fetchVidrock(cacheKey, q.id, q.s, q.e), source: 'vidrock' },
                 { fetch: () => fetchVidlink(cacheKey, q.id, q.s, q.e), source: 'vidlink' },
             ].filter(f => f.source !== source);
             let found = false;
