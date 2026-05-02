@@ -339,7 +339,8 @@ function fetchSubWithFallback(sub) {
 }
 
 function play(raw, skipProxy, videoId) {
-    var src = skipProxy || raw.startsWith('/api') ? raw : '/api?url=' + encodeURIComponent(raw);
+    var isIcefy = raw.includes('icefy.top');
+    var src = (skipProxy || raw.startsWith('/api') || isIcefy) ? raw : '/api?url=' + encodeURIComponent(raw);
     var v = document.getElementById('v');
     var controlsWrapper = document.getElementById('player-controls-wrapper');
     var titleBar = document.getElementById('title-bar');
@@ -861,8 +862,7 @@ function play(raw, skipProxy, videoId) {
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (!d.url) { scheduleRetry(); return; }
-                    var newSrc = '/api?url=' + encodeURIComponent(d.url);
-                    if (Hls.isSupported()) {
+                    var newSrc = d.url.includes('icefy.top') ? d.url : '/api?url=' + encodeURIComponent(d.url); if (Hls.isSupported()) {
                         hls.stopLoad();
                         hls.detachMedia();
                         hls.loadSource(newSrc);
@@ -971,7 +971,7 @@ function play(raw, skipProxy, videoId) {
     }
 
     if (Hls.isSupported()) {
-        var hls = new Hls({
+        var hlsConfig = {
             startLevel: 0,
             maxBufferLength: 30,
             maxMaxBufferLength: 60,
@@ -991,7 +991,28 @@ function play(raw, skipProxy, videoId) {
             manifestLoadingTimeOut: 20000,
             levelLoadingTimeOut: 20000,
             testBandwidth: true,
-        });
+        };
+        if (isIcefy) {
+            hlsConfig.pLoader = (function () {
+                function PLoader(config) { }
+                PLoader.prototype.load = function (context, cfg, callbacks) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', '/api?icefy_key=' + encodeURIComponent(context.url), true);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.onload = function () {
+                        callbacks.onSuccess({ data: xhr.response, url: context.url }, { trequest: performance.now(), tfirst: performance.now(), tload: performance.now(), total: xhr.response.byteLength }, context);
+                    };
+                    xhr.onerror = function () {
+                        callbacks.onError({ code: xhr.status, text: xhr.statusText }, context, null);
+                    };
+                    xhr.send();
+                };
+                PLoader.prototype.abort = function () { };
+                PLoader.prototype.destroy = function () { };
+                return PLoader;
+            })();
+        }
+        var hls = new Hls(hlsConfig);
         hls.loadSource(src);
         hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
@@ -1269,7 +1290,7 @@ function play(raw, skipProxy, videoId) {
     });
 
     function switchSource(url) {
-        var newSrc = url.startsWith('/api') ? url : '/api?url=' + encodeURIComponent(url);
+        var newSrc = (url.startsWith('/api') || url.includes('icefy.top')) ? url : '/api?url=' + encodeURIComponent(url);
         var wasPlaying = !v.paused;
         var savedTime = v.currentTime;
 
@@ -1325,6 +1346,47 @@ function play(raw, skipProxy, videoId) {
         if (Hls.isSupported() && typeof hls !== 'undefined') {
             hls.stopLoad();
             hls.detachMedia();
+            hls.destroy();
+            var switchIsIcefy = newSrc.includes('icefy.top');
+            var switchConfig = {
+                startLevel: 0,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+                maxBufferSize: 60 * 1000 * 1000,
+                backBufferLength: 10,
+                maxBufferHole: 0.5,
+                frontBufferFlushThreshold: 30,
+                abrEwmaDefaultEstimate: 3000000,
+                abrBandWidthFactor: 0.75,
+                abrBandWidthUpFactor: 0.7,
+                nudgeMaxRetry: 5,
+                nudgeOffset: 0.2,
+                fragLoadingTimeOut: 20000,
+                manifestLoadingTimeOut: 20000,
+                levelLoadingTimeOut: 20000,
+                testBandwidth: true,
+            };
+            if (switchIsIcefy) {
+                switchConfig.pLoader = (function () {
+                    function PLoader(config) { }
+                    PLoader.prototype.load = function (context, cfg, callbacks) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('GET', '/api?icefy_key=' + encodeURIComponent(context.url), true);
+                        xhr.responseType = 'arraybuffer';
+                        xhr.onload = function () {
+                            callbacks.onSuccess({ data: xhr.response, url: context.url }, { trequest: performance.now(), tfirst: performance.now(), tload: performance.now(), total: xhr.response.byteLength }, context);
+                        };
+                        xhr.onerror = function () {
+                            callbacks.onError({ code: xhr.status, text: xhr.statusText }, context, null);
+                        };
+                        xhr.send();
+                    };
+                    PLoader.prototype.abort = function () { };
+                    PLoader.prototype.destroy = function () { };
+                    return PLoader;
+                })();
+            }
+            hls = new Hls(switchConfig);
             hls.loadSource(newSrc);
             hls.attachMedia(v);
             hls.once(Hls.Events.MANIFEST_PARSED, function () {
@@ -1342,6 +1404,7 @@ function play(raw, skipProxy, videoId) {
                 onSwitchReady();
             });
         }
+
     }
 
     var sources = [];

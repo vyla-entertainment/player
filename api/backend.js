@@ -239,6 +239,43 @@ async function proxyVidsrc(url, res) {
     upstream.pipe(res);
 }
 
+async function proxyIcefy(url, res) {
+    const upstream = await fetchRaw(url);
+
+    if (upstream.statusCode >= 400) {
+        res.statusCode = 502;
+        return res.end('icefy upstream: ' + upstream.statusCode);
+    }
+
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+
+    const isM3u8 =
+        ct.includes('mpegurl') ||
+        ct.includes('m3u8') ||
+        /\.m3u8?(\?|$)/i.test(url);
+
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+
+        if (!body.trim().startsWith('#EXTM3U')) {
+            res.statusCode = 502;
+            return res.end('icefy: not a valid m3u8');
+        }
+
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewriteM3u8(body, url, '&ix=1'));
+    }
+
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+
+    upstream.pipe(res);
+}
+
 async function getMetadata(id, s, e) {
     try {
         const k = process.env.TMDB_API_KEY;
@@ -312,7 +349,7 @@ function fetchVidsrc(cacheKey, id, s, e) {
 function wrapUrl(rawUrl, source) {
     if (!rawUrl) return null;
     const raw = typeof rawUrl === 'object' ? rawUrl.url : rawUrl;
-    if (source === 'icefy') return '/api?url=' + encodeURIComponent(raw) + '&ix=1';
+    if (source === 'icefy') return raw;
     if (source === 'vidzee') return '/api?url=' + encodeURIComponent(raw) + '&vz=1';
     if (source === 'vidlink') return '/api?url=' + encodeURIComponent(raw) + '&vl=1';
     if (source === 'vidnest') return '/api?url=' + encodeURIComponent(raw) + '&vn=1';
@@ -321,6 +358,7 @@ function wrapUrl(rawUrl, source) {
 }
 
 async function verifyStream(rawUrl, source) {
+    if (source === 'icefy') return true;
     try {
         const headers = { 'User-Agent': getUA() };
         if (source === 'vidlink') { headers['Referer'] = REFERER; headers['Origin'] = ORIGIN; }
@@ -580,12 +618,12 @@ module.exports = async (req, res) => {
                 candidates.map(async c => {
                     const raw = typeof c.raw === 'object' ? c.raw.url : c.raw;
                     const ok = await verifyStream(raw, c.source);
-                    return ok ? { url: wrapUrl(c.raw, c.source) } : null;
+                    return ok ? { url: wrapUrl(c.raw, c.source), source: c.source } : null;
                 })
             );
 
             const sources = verified.filter(Boolean);
-            sources.forEach((s, i) => s.label = 'Source: ' + (i + 1));
+            sources.forEach((s, i) => s.label = 'Source: ' + (i + 1) + ' (' + s.source + ')');
             if (!sources.length) {
                 res.statusCode = 502;
                 return res.end(JSON.stringify({ error: 'no sources' }));
@@ -595,6 +633,21 @@ module.exports = async (req, res) => {
         } catch (err) {
             res.statusCode = 500;
             return res.end(JSON.stringify({ error: err.message }));
+        }
+    }
+
+    if (q.icefy_key) {
+        try {
+            const keyUrl = decodeURIComponent(q.icefy_key);
+            const upstream = await fetchUpstream(keyUrl, 0, icefy.ICEFY_HEADERS);
+            const buf = [];
+            for await (const c of upstream) buf.push(c);
+            res.setHeader('Content-Type', 'application/octet-stream');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            return res.end(Buffer.concat(buf));
+        } catch (e) {
+            res.statusCode = 502;
+            return res.end(e.message);
         }
     }
 
@@ -613,7 +666,6 @@ module.exports = async (req, res) => {
                 return res.end(stripped);
             }
             if (q.vz) return await proxyVidzee(rawUrl, res);
-            if (q.ix) return await icefy.proxyIcefy(rawUrl, res);
             if (q.vl) return await proxyVidlink(rawUrl, res);
             if (q.vn) return await proxyVidnest(rawUrl, res);
             if (q.vs) return await proxyVidsrc(rawUrl, res);

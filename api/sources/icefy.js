@@ -12,8 +12,8 @@ const ICEFY_HEADERS = {
 };
 
 const ICEFY_BASES = [
-    'https://streams.icefy.top',
     'https://abc-cdn4-optestre.icefy.top',
+    'https://streams.icefy.top',
 ];
 
 function fetchRaw(url, redirects = 0) {
@@ -47,6 +47,10 @@ async function fetchFromBase(id, s, e, base) {
         : `${base}/movie/${id}`;
 
     const res = await fetchRaw(endpoint);
+
+    if (res.statusCode === 429) {
+        throw new Error('icefy: rate limited');
+    }
 
     if (res.statusCode >= 400) {
         throw new Error(`icefy: cdn returned ${res.statusCode}`);
@@ -86,65 +90,28 @@ async function getStream(id, s, e) {
     throw new Error('icefy: all bases failed');
 }
 
-function resolveUrl(uri, origin, dir) {
-    if (uri.startsWith('http://') || uri.startsWith('https://')) return uri;
-    if (uri.startsWith('//')) return 'https:' + uri;
-    if (uri.startsWith('/')) return origin + uri;
-    return new URL(uri, dir).href;
-}
+async function proxyKey(keyUrl, res) {
+    const upstream = await fetchRaw(keyUrl);
 
-function rewriteM3u8(body, sourceUrl, extraParam = '') {
-    const base = sourceUrl.split('?')[0];
-    const dir = base.slice(0, base.lastIndexOf('/') + 1);
-    const origin = new URL(sourceUrl).origin;
-
-    return body.split('\n').map(line => {
-        const t = line.trim();
-        if (!t) return line;
-
-        if (t.startsWith('#')) {
-            return t.replace(/URI="([^"]+)"/g, (_match, uri) => {
-                const abs = resolveUrl(uri, origin, dir);
-                return `URI="/api?url=${encodeURIComponent(abs)}${extraParam}"`;
-            });
-        }
-
-        const abs = resolveUrl(t, origin, dir);
-        return '/api?url=' + encodeURIComponent(abs) + extraParam;
-    }).join('\n');
-}
-
-async function proxyIcefy(url, res) {
-    const upstream = await fetchRaw(url);
-    const ct = (upstream.headers['content-type'] || '').toLowerCase();
-
-    const isM3u8 =
-        ct.includes('mpegurl') ||
-        ct.includes('m3u8') ||
-        /\.m3u8?(\?|$)/i.test(url);
-
-    if (isM3u8) {
-        const chunks = [];
-        for await (const c of upstream) chunks.push(c);
-        const body = Buffer.concat(chunks).toString('utf8');
-
-        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        return res.end(rewriteM3u8(body, url, '&ix=1'));
+    if (upstream.statusCode >= 400) {
+        res.statusCode = upstream.statusCode;
+        upstream.resume();
+        return res.end('icefy key: upstream ' + upstream.statusCode);
     }
 
-    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    const chunks = [];
+    for await (const c of upstream) chunks.push(c);
+    const buf = Buffer.concat(chunks);
+
+    res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'public, max-age=3600');
-
-    upstream.pipe(res);
+    res.end(buf);
 }
 
 module.exports = {
     getStream,
-    proxyIcefy,
-    rewriteM3u8,
-    resolveUrl,
+    proxyKey,
     ICEFY_HEADERS,
     ICEFY_BASES,
     UA,
