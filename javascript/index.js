@@ -1657,6 +1657,64 @@ function play(raw, skipProxy, videoId) {
         });
     }
 
+    var mainPipBtn = document.getElementById('main-pip-btn');
+    if (mainPipBtn) {
+        mainPipBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            showSettingsView('download');
+            haptic(6);
+            var list = document.getElementById('download-list');
+            if (list.dataset.loaded) return;
+            list.dataset.loaded = '1';
+            list.innerHTML = '<div class="source-skeleton"><div class="source-skel-item"></div><div class="source-skel-item"></div><div class="source-skel-item"></div></div>';
+            var endpoint = s
+                ? 'https://vyla-api.pages.dev/api/download/tv?id=' + id + '&season=' + s + '&episode=' + (e || '1')
+                : 'https://vyla-api.pages.dev/api/download/movie?id=' + id;
+            fetch(endpoint)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var sources = data.sources || data.streams || [];
+                    if (!sources.length) {
+                        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--white-45);font-size:14px;">No download sources found.</div>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    sources.forEach(function (src, i) {
+                        var name = src.source || src.provider || ('Source ' + (i + 1));
+                        name = name.charAt(0).toUpperCase() + name.slice(1);
+                        var quality = src.quality || src.resolution || '';
+                        var isHls = src.is_hls || false;
+                        var item = document.createElement('div');
+                        item.className = 'download-item';
+                        item.innerHTML =
+                            '<div class="download-item-left">' +
+                            '<span class="download-item-name">' + name + (quality ? ' <span class="download-item-quality">' + quality + '</span>' : '') + '</span>' +
+                            '<span class="download-item-type">' + (isHls ? 'HLS — copy ffmpeg' : 'Direct MP4') + '</span>' +
+                            '</div>' +
+                            '<div class="download-item-actions">' +
+                            (isHls
+                                ? '<button class="download-action-btn"><i class="fa-solid fa-copy"></i> Copy</button>'
+                                : '<a class="download-action-btn" href="' + src.download_url + '" target="_blank" download><i class="fa-solid fa-download"></i> Save</a>'
+                            ) +
+                            '</div>';
+                        if (isHls) {
+                            item.querySelector('.download-action-btn').addEventListener('click', function () {
+                                var btn = this;
+                                navigator.clipboard.writeText(src.ffmpeg_command || '').then(function () {
+                                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                                    setTimeout(function () { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy'; }, 2000);
+                                });
+                            });
+                        }
+                        list.appendChild(item);
+                    });
+                })
+                .catch(function () {
+                    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--white-45);font-size:14px;">Failed to fetch download sources.</div>';
+                });
+        });
+    }
+    
     var mainPlaybackBtn = document.getElementById('main-playback-btn');
     if (mainPlaybackBtn) {
         mainPlaybackBtn.addEventListener('click', function (e) {
