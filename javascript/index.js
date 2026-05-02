@@ -783,36 +783,54 @@ function play(raw, skipProxy, videoId) {
     }
 
     function showUnmuteHint() {
-        var hint = document.getElementById('unmute-hint');
-        if (!hint) {
-            hint = document.createElement('div');
-            hint.id = 'unmute-hint';
-            hint.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(0,0,0,0.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff;font-family:var(--font);font-size:14px;font-weight:600;padding:14px 22px;border-radius:100px;display:flex;align-items:center;gap:10px;cursor:pointer;letter-spacing:0.02em;pointer-events:auto;transition:opacity 0.3s ease;';
-            hint.innerHTML = '<i class="fa-solid fa-volume-xmark" style="font-size:16px;"></i> Tap to unmute';
-            document.getElementById('player').appendChild(hint);
-        }
-        hint.style.display = 'flex';
-        hint.style.opacity = '1';
+        var _unmuteDone = false;
 
         function doUnmute() {
+            if (_unmuteDone) return;
+            _unmuteDone = true;
             v.muted = false;
             v.volume = 1;
             _autoplayUnlocked = true;
             _pendingUnmute = false;
             hint.style.opacity = '0';
             setTimeout(function () { hint.style.display = 'none'; }, 300);
-            document.removeEventListener('click', onDoc, true);
+            hint.removeEventListener('touchend', onHintTouch);
+            hint.removeEventListener('click', onHintClick);
+            document.removeEventListener('touchend', onDocTouch, true);
+            document.removeEventListener('click', onDocClick, true);
             haptic();
         }
 
-        function onDoc(ev) {
+        function onHintTouch(ev) {
+            ev.stopPropagation();
+            ev.preventDefault();
+            doUnmute();
+        }
+
+        function onHintClick(ev) {
+            ev.stopPropagation();
+            doUnmute();
+        }
+
+        var _docListenerReady = false;
+        setTimeout(function () { _docListenerReady = true; }, 600);
+
+        function onDocTouch(ev) {
+            if (!_docListenerReady) return;
             if (ev.target.id === '__hx') return;
             doUnmute();
         }
 
-        hint.addEventListener('click', function (ev) { ev.stopPropagation(); doUnmute(); });
-        hint.addEventListener('touchend', function (ev) { ev.stopPropagation(); doUnmute(); });
-        document.addEventListener('click', onDoc, true);
+        function onDocClick(ev) {
+            if (!_docListenerReady) return;
+            if (ev.target.id === '__hx') return;
+            doUnmute();
+        }
+
+        hint.addEventListener('touchend', onHintTouch, { passive: false });
+        hint.addEventListener('click', onHintClick);
+        document.addEventListener('touchend', onDocTouch, true);
+        document.addEventListener('click', onDocClick, true);
     }
 
     function unlockOnInteraction() {
@@ -1439,7 +1457,7 @@ function play(raw, skipProxy, videoId) {
     function buildSourceList() {
         sourceListEl.innerHTML = '';
         if (sourceBtnLabel) {
-            sourceBtnLabel.innerHTML = 'SOURCE: ' + (currentSourceIndex + 1) + ' <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+            sourceBtnLabel.innerHTML = 'SOURCE ' + (currentSourceIndex + 1) + ' <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
         }
         sources.forEach(function (source, i) {
             var item = document.createElement('div');
@@ -1447,7 +1465,7 @@ function play(raw, skipProxy, videoId) {
             item.className = 'ep-item' + (isActive ? ' current' : '');
             item.innerHTML =
                 '<div class="source-icon-wrap"><i class="fa-solid fa-' + (isActive ? 'circle-check' : 'circle') + '"></i></div>' +
-                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">' + (source.label || 'Source: ' + (i + 1)) + '</span></div></div>' +
+                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">Source ' + (i + 1) + '</span></div></div>' +
                 (isActive ? '<i class="fa-solid fa-check source-active-check"></i>' : '');
             if (!isActive) {
                 item.addEventListener('click', function () {
@@ -1464,8 +1482,8 @@ function play(raw, skipProxy, videoId) {
 
     function fetchSources() {
         if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
-        if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING... <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-        sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Loading...</span></div></div>';
+        if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+        sourceListEl.innerHTML = '<div class="source-skeleton"><div class="source-skel-item"></div><div class="source-skel-item"></div><div class="source-skel-item"></div></div>';
         var endpoint = s
             ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
             : '/api?sources=1&id=' + id;
