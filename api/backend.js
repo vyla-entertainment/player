@@ -3,6 +3,8 @@
 const https = require('https');
 const http = require('http');
 
+const { SOURCES, SOURCE_MAP, ALLOWED_ORIGINS, HEALTH_PROBE_ID, CACHE_TTL } = require('./config');
+
 const vidlink = require('./sources/vidlink');
 const icefy = require('./sources/icefy');
 const vidzee = require('./sources/vidzee');
@@ -10,6 +12,8 @@ const vidnest = require('./sources/vidnest');
 const vidsrc = require('./sources/vidsrc');
 const vidrock = require('./sources/vidrock');
 const videasy = require('./sources/videasy');
+
+const SOURCE_MODULES = { vidlink, icefy, vidzee, vidnest, vidsrc, vidrock, videasy };
 
 const REFERER = vidlink.REFERER;
 const ORIGIN = vidlink.ORIGIN;
@@ -26,7 +30,6 @@ const UA_LIST = [
 const getUA = () => UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
 
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000;
 
 const SOURCE_TIMEOUT = {
     vidlink: 12000,
@@ -66,10 +69,34 @@ async function withRetry(fn, attempts = 3, delay = 1000) {
 function withTimeout(promise, ms, label) {
     return Promise.race([
         promise,
-        new Promise(resolve => setTimeout(() => {
-            resolve(null);
-        }, ms))
+        new Promise(resolve => setTimeout(() => { resolve(null); }, ms))
     ]);
+}
+
+function fetchSource(cfg, cacheKey, id, s, e, forSources = false) {
+    const mod = SOURCE_MODULES[cfg.key];
+    if (cfg.key === 'icefy') {
+        return withTimeout(
+            jitter(cfg.jitter).then(async () => {
+                for (const base of icefy.ICEFY_BASES) {
+                    const key = `icefy-${base.includes('abc') ? 'abc' : 'streams'}-${cacheKey}`;
+                    const result = await getCached(key, () => withRetry(() => mod.getStream(id, s, e, base), cfg.retries, 500)).catch(() => null);
+                    if (result) return result;
+                }
+                return null;
+            }),
+            cfg.timeout,
+            cfg.key
+        );
+    }
+    const timeoutMs = (cfg.key === 'vidzee' && forSources) ? 5000 : cfg.timeout;
+    return withTimeout(
+        jitter(cfg.jitter).then(() =>
+            getCached(`${cfg.key}-${cacheKey}`, () => withRetry(() => mod.getStream(id, s, e), cfg.retries, 1000)).catch(() => null)
+        ),
+        timeoutMs,
+        cfg.key
+    );
 }
 
 async function proxy(url, res) {
@@ -382,29 +409,25 @@ function fetchVideasy(cacheKey, id, s, e) {
     );
 }
 
-function wrapUrl(rawUrl, source) {
+function wrapUrl(rawUrl, sourceKey) {
     if (!rawUrl) return null;
     const raw = typeof rawUrl === 'object' ? rawUrl.url : rawUrl;
-    if (source === 'icefy') return raw;
-    if (source === 'vidzee') return '/api?url=' + encodeURIComponent(raw) + '&vz=1';
-    if (source === 'vidlink') return '/api?url=' + encodeURIComponent(raw) + '&vl=1';
-    if (source === 'vidnest') return '/api?url=' + encodeURIComponent(raw) + '&vn=1';
-    if (source === 'vidsrc') return '/api?url=' + encodeURIComponent(raw) + '&vs=1';
-    if (source === 'vidrock') return '/api?url=' + encodeURIComponent(raw) + '&vr=1';
-    if (source === 'videasy') return '/api?url=' + encodeURIComponent(raw) + '&vy=1';
-    return raw;
+    const cfg = SOURCE_MAP[sourceKey];
+    if (!cfg) return raw;
+    if (sourceKey === 'icefy') return raw;
+    return '/api?url=' + encodeURIComponent(raw) + '&' + cfg.proxyParam + '=1';
 }
 
-async function verifyStream(rawUrl, source) {
-    if (source === 'icefy') return true;
+async function verifyStream(rawUrl, sourceKey) {
+    if (sourceKey === 'icefy') return true;
     try {
         const headers = { 'User-Agent': getUA() };
-        if (source === 'vidlink') { headers['Referer'] = REFERER; headers['Origin'] = ORIGIN; }
-        if (source === 'vidnest') Object.assign(headers, vidnest.HEADERS);
-        if (source === 'vidsrc') Object.assign(headers, vidsrc.HEADERS);
-        if (source === 'vidzee') Object.assign(headers, VIDZEE_HLS_HEADERS);
-        if (source === 'vidrock') Object.assign(headers, vidrock.HEADERS);
-        if (source === 'videasy') Object.assign(headers, videasy.HEADERS);
+        if (sourceKey === 'vidlink') { headers['Referer'] = REFERER; headers['Origin'] = ORIGIN; }
+        if (sourceKey === 'vidnest') Object.assign(headers, vidnest.HEADERS);
+        if (sourceKey === 'vidsrc') Object.assign(headers, vidsrc.HEADERS);
+        if (sourceKey === 'vidzee') Object.assign(headers, VIDZEE_HLS_HEADERS);
+        if (sourceKey === 'vidrock') Object.assign(headers, vidrock.HEADERS);
+        if (sourceKey === 'videasy') Object.assign(headers, videasy.HEADERS);
         const upstream = await Promise.race([
             fetchUpstream(rawUrl, 0, headers),
             new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
@@ -415,90 +438,36 @@ async function verifyStream(rawUrl, source) {
             chunks.push(c);
             if (Buffer.concat(chunks).length > 512) break;
         }
-        const text = Buffer.concat(chunks).toString('utf8');
-        return text.trim().startsWith('#EXTM3U');
+        return Buffer.concat(chunks).toString('utf8').trim().startsWith('#EXTM3U');
     } catch {
         return false;
     }
 }
 
 async function handleHealth(res) {
-    const [vidlinkResult, icefyResult, vidzeeResult, vidnestResult, vidsrcResult, vidrockResult, videasyResult] = await Promise.allSettled([
-        (async () => {
+    const results = await Promise.allSettled(
+        SOURCES.map(cfg => (async () => {
             const t = Date.now();
-            const url = await withTimeout(
-                withRetry(() => vidlink.getStream('550', null, null)),
-                SOURCE_TIMEOUT.vidlink, 'health:vidlink'
-            );
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidlink') : null };
-        })(),
-        (async () => {
-            const t = Date.now();
+            const mod = SOURCE_MODULES[cfg.key];
             let url = null;
-            for (const base of icefy.ICEFY_BASES) {
-                url = await withTimeout(
-                    withRetry(() => icefy.getStream('550', null, null, base), 2, 500),
-                    SOURCE_TIMEOUT.icefy, 'health:icefy'
-                ).catch(() => null);
-                if (url) break;
+            if (cfg.key === 'icefy') {
+                for (const base of icefy.ICEFY_BASES) {
+                    url = await withTimeout(withRetry(() => mod.getStream(HEALTH_PROBE_ID, null, null, base), 2, 500), cfg.timeout, 'health:' + cfg.key).catch(() => null);
+                    if (url) break;
+                }
+            } else {
+                url = await withTimeout(withRetry(() => mod.getStream(HEALTH_PROBE_ID, null, null), cfg.retries, 1000), cfg.timeout, 'health:' + cfg.key).catch(() => null);
             }
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'icefy') : null };
-        })(),
-        (async () => {
-            const t = Date.now();
-            const url = await withTimeout(
-                withRetry(() => vidzee.getStream('550', null, null)),
-                SOURCE_TIMEOUT.vidzee, 'health:vidzee'
-            ).catch(() => null);
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidzee') : null };
-        })(),
-        (async () => {
-            const t = Date.now();
-            const url = await withTimeout(
-                withRetry(() => vidnest.getStream('550', null, null)),
-                SOURCE_TIMEOUT.vidnest, 'health:vidnest'
-            ).catch(() => null);
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidnest') : null };
-        })(),
-        (async () => {
-            const t = Date.now();
-            const url = await withTimeout(
-                withRetry(() => vidsrc.getStream('550', null, null), 2, 1000),
-                SOURCE_TIMEOUT.vidsrc, 'health:vidsrc'
-            ).catch(() => null);
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidsrc') : null };
-        })(),
-        (async () => {
-            const t = Date.now();
-            const url = await withTimeout(
-                withRetry(() => vidrock.getStream('550', null, null), 2, 1000),
-                SOURCE_TIMEOUT.vidrock, 'health:vidrock'
-            ).catch(() => null);
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'vidrock') : null };
-        })(),
-        (async () => {
-            const t = Date.now();
-            const url = await withTimeout(
-                withRetry(() => videasy.getStream('550', null, null), 2, 1000),
-                SOURCE_TIMEOUT.videasy, 'health:videasy'
-            ).catch(() => null);
-            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, 'videasy') : null };
-        })(),
-    ]);
+            return { ok: !!url, ms: Date.now() - t, url: url ? wrapUrl(url, cfg.key) : null };
+        })())
+    );
 
     function unwrap(r) {
         return r.status === 'fulfilled' ? r.value : { ok: false, ms: null, url: null, error: r.reason?.message };
     }
 
-    const vl = unwrap(vidlinkResult);
-    const ic = unwrap(icefyResult);
-    const vz = unwrap(vidzeeResult);
-    const vn = unwrap(vidnestResult);
-    const vs = unwrap(vidsrcResult);
-    const vr = unwrap(vidrockResult);
-    const vy = unwrap(videasyResult);
-
-    const allOk = vl.ok && ic.ok && vz.ok && vn.ok && vs.ok && vr.ok && vy.ok;
+    const byKey = Object.fromEntries(SOURCES.map((cfg, i) => [cfg.key, unwrap(results[i])]));
+    const allOk = Object.values(byKey).every(v => v.ok);
 
     res.setHeader('Content-Type', 'application/json');
     res.statusCode = allOk ? 200 : 207;
@@ -508,20 +477,23 @@ async function handleHealth(res) {
         timestamp: new Date().toISOString(),
         tmdb: !!process.env.TMDB_API_KEY,
         cache: cache.size,
-        probe_id: 550,
-        sources: {
-            vidlink: vl,
-            icefy: ic,
-            vidzee: vz,
-            vidnest: vn,
-            vidsrc: vs,
-            vidrock: vr,
-            videasy: vy,
-        }
+        probe_id: HEALTH_PROBE_ID,
+        sources: byKey,
     }, null, 2));
 }
 
 function handleIndex(res) {
+    const testEntries = Object.fromEntries(
+        SOURCES.map(cfg => [`/api?test_${cfg.key}=1&id=<tmdb_id>`, `Test ${cfg.label} source only`])
+    );
+    const exampleBase = SOURCES.reduce((acc, cfg) => {
+        acc[`test_${cfg.key}`] = `/api?test_${cfg.key}=1&id=550`;
+        return acc;
+    }, {});
+    const exampleShows = SOURCES.reduce((acc, cfg) => {
+        acc[`test_${cfg.key}`] = `/api?test_${cfg.key}=1&id=1396&s=1&e=1`;
+        return acc;
+    }, {});
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
         endpoints: {
@@ -531,51 +503,19 @@ function handleIndex(res) {
             '/api?id=<tmdb_id>': 'Single best stream URL for a movie',
             '/api?id=<tmdb_id>&s=<season>&e=<episode>': 'Single best stream URL for a TV episode',
         },
-        test: {
-            '/api?test_vidlink=1&id=<tmdb_id>': 'Test VidLink source only',
-            '/api?test_icefy=1&id=<tmdb_id>': 'Test Icefy source only',
-            '/api?test_vidzee=1&id=<tmdb_id>': 'Test VidZee source only',
-            '/api?test_vidnest=1&id=<tmdb_id>': 'Test VidNest source only',
-            '/api?test_vs=1&id=<tmdb_id>': 'Test VidSrc source only',
-            '/api?test_vr=1&id=<tmdb_id>': 'Test VidRock source only',
-            '/api?test_vy=1&id=<tmdb_id>': 'Test Videasy source only',
-        },
-        examples: {
-            movies: {
-                test_vidlink: '/api?test_vidlink=1&id=550',
-                test_icefy: '/api?test_icefy=1&id=550',
-                test_vidzee: '/api?test_vidzee=1&id=550',
-                test_vidnest: '/api?test_vidnest=1&id=550',
-                test_vidsrc: '/api?test_vs=1&id=550',
-                test_vidrock: '/api?test_vr=1&id=550',
-                test_videasy: '/api?test_vy=1&id=550',
-            },
-            shows: {
-                test_vidlink: '/api?test_vidlink=1&id=1396&s=1&e=1',
-                test_icefy: '/api?test_icefy=1&id=1396&s=1&e=1',
-                test_vidzee: '/api?test_vidzee=1&id=1396&s=1&e=1',
-                test_vidnest: '/api?test_vidnest=1&id=1396&s=1&e=1',
-                test_vidsrc: '/api?test_vs=1&id=1396&s=1&e=1',
-                test_vidrock: '/api?test_vr=1&id=1396&s=1&e=1',
-                test_videasy: '/api?test_vy=1&id=1396&s=1&e=1',
-            }
-        }
+        test: testEntries,
+        examples: { movies: exampleBase, shows: exampleShows },
     }, null, 2));
 }
 
-async function handleTestSource(res, source, id, s, e) {
+async function handleTestSource(res, sourceKey, id, s, e) {
     const start = Date.now();
     const cacheKey = `${id}-${s || ''}-${e || ''}`;
+    const cfg = SOURCE_MAP[sourceKey];
     let rawUrl = null;
     let error = null;
     try {
-        if (source === 'vidlink') rawUrl = await fetchVidlink(cacheKey, id, s, e);
-        else if (source === 'icefy') rawUrl = await fetchIcefy(cacheKey, id, s, e);
-        else if (source === 'vidzee') rawUrl = await fetchVidzee(cacheKey, id, s, e);
-        else if (source === 'vidnest') rawUrl = await fetchVidnest(cacheKey, id, s, e);
-        else if (source === 'vidsrc') rawUrl = await fetchVidsrc(cacheKey, id, s, e);
-        else if (source === 'vidrock') rawUrl = await fetchVidrock(cacheKey, id, s, e);
-        else if (source === 'videasy') rawUrl = await fetchVideasy(cacheKey, id, s, e);
+        rawUrl = await fetchSource(cfg, cacheKey, id, s, e);
     } catch (err) {
         error = err.message;
     }
@@ -583,12 +523,12 @@ async function handleTestSource(res, source, id, s, e) {
     const raw = rawUrl ? (typeof rawUrl === 'object' ? rawUrl.url : rawUrl) : null;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
-        source,
+        source: sourceKey,
         id,
         s: s || null,
         e: e || null,
         ok: !!raw,
-        url: wrapUrl(raw, source),
+        url: wrapUrl(raw, sourceKey),
         raw_url: raw,
         elapsed_ms: elapsed,
         error: error || (raw ? null : 'no stream returned'),
@@ -596,12 +536,12 @@ async function handleTestSource(res, source, id, s, e) {
 }
 
 module.exports = async (req, res) => {
-    var origin = req.headers.origin;
-    if (origin === 'https://vyla.pages.dev' || origin === 'http://localhost:7860') {
+    const origin = req.headers.origin;
+    if (ALLOWED_ORIGINS.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://vyla.pages.dev http://localhost:7860 http://localhost");
+    res.setHeader('Content-Security-Policy', `frame-ancestors 'self' ${ALLOWED_ORIGINS.join(' ')}`);
 
     const { pathname, searchParams } = new URL(req.url, 'http://x');
     const q = Object.fromEntries(searchParams);
@@ -657,39 +597,18 @@ module.exports = async (req, res) => {
         }
     }
 
-    if (q.test_vidlink || q.test_icefy || q.test_vidzee || q.test_vidnest || q.test_md || q.test_vs || q.test_vr || q.test_vy) {
-        const source = q.test_vidlink ? 'vidlink'
-            : q.test_icefy ? 'icefy'
-                : q.test_vidzee ? 'vidzee'
-                    : q.test_vidnest ? 'vidnest'
-                        : q.test_md ? 'moviedownloader'
-                            : q.test_vs ? 'vidsrc'
-                                : q.test_vr ? 'vidrock'
-                                    : 'videasy';
-        return handleTestSource(res, source, q.id, q.s, q.e);
+    const testKey = SOURCES.map(cfg => cfg.key).find(k => q['test_' + k]);
+    if (testKey) {
+        return handleTestSource(res, testKey, q.id, q.s, q.e);
     }
 
     if ('sources' in q) {
         try {
             const cacheKey = `${q.id}-${q.s || ''}-${q.e || ''}`;
-            const [vidlinkUrl, icefyUrl, vidzeeUrl, vidnestUrl, vidrockUrl, vidsrcUrl, videasyUrl] = await Promise.all([
-                fetchVidlink(cacheKey, q.id, q.s, q.e),
-                fetchIcefy(cacheKey, q.id, q.s, q.e),
-                fetchVidzee(cacheKey, q.id, q.s, q.e, true),
-                fetchVidnest(cacheKey, q.id, q.s, q.e),
-                fetchVidrock(cacheKey, q.id, q.s, q.e),
-                fetchVidsrc(cacheKey, q.id, q.s, q.e),
-                fetchVideasy(cacheKey, q.id, q.s, q.e),
-            ]);
-            const candidates = [
-                { raw: vidlinkUrl, source: 'vidlink' },
-                { raw: icefyUrl, source: 'icefy' },
-                { raw: vidzeeUrl, source: 'vidzee' },
-                { raw: vidnestUrl, source: 'vidnest' },
-                { raw: vidrockUrl, source: 'vidrock' },
-                { raw: vidsrcUrl, source: 'vidsrc' },
-                { raw: videasyUrl, source: 'videasy' },
-            ].filter(c => c.raw);
+            const fetched = await Promise.all(
+                SOURCES.map(cfg => fetchSource(cfg, cacheKey, q.id, q.s, q.e, cfg.key === 'vidzee').then(r => ({ raw: r, source: cfg.key })))
+            );
+            const candidates = fetched.filter(c => c.raw);
 
             const verified = await Promise.all(
                 candidates.map(async c => {
@@ -755,6 +674,13 @@ module.exports = async (req, res) => {
         }
     }
 
+    if (q.sources_meta) {
+        res.setHeader('Content-Type', 'application/json');
+        return res.end(JSON.stringify({
+            sources: SOURCES.map(cfg => ({ key: cfg.key, label: cfg.label, timeout: cfg.timeout }))
+        }));
+    }
+
     if (!q.id) {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: 'missing id' }));
@@ -767,32 +693,12 @@ module.exports = async (req, res) => {
             getMetadata(q.id, q.s, q.e)
         ]);
 
-        let rawUrl = primaryUrl;
-        let source = 'vidlink';
+        let rawUrl = null;
+        let source = null;
 
-        if (!rawUrl) {
-            rawUrl = await fetchIcefy(cacheKey, q.id, q.s, q.e);
-            if (rawUrl) source = 'icefy';
-        }
-        if (!rawUrl) {
-            rawUrl = await fetchVidzee(cacheKey, q.id, q.s, q.e);
-            if (rawUrl) source = 'vidzee';
-        }
-        if (!rawUrl) {
-            rawUrl = await fetchVidnest(cacheKey, q.id, q.s, q.e);
-            if (rawUrl) source = 'vidnest';
-        }
-        if (!rawUrl) {
-            rawUrl = await fetchVidsrc(cacheKey, q.id, q.s, q.e);
-            if (rawUrl) source = 'vidsrc';
-        }
-        if (!rawUrl) {
-            rawUrl = await fetchVidrock(cacheKey, q.id, q.s, q.e);
-            if (rawUrl) source = 'vidrock';
-        }
-        if (!rawUrl) {
-            rawUrl = await fetchVideasy(cacheKey, q.id, q.s, q.e);
-            if (rawUrl) source = 'videasy';
+        for (const cfg of SOURCES) {
+            rawUrl = await fetchSource(cfg, cacheKey, q.id, q.s, q.e);
+            if (rawUrl) { source = cfg.key; break; }
         }
 
         if (!rawUrl) throw new Error('no stream');
@@ -801,26 +707,16 @@ module.exports = async (req, res) => {
         const primaryRaw = typeof rawUrl === 'object' ? rawUrl.url : rawUrl;
         const primaryOk = await verifyStream(primaryRaw, source);
         if (!primaryOk) {
-            const fallbacks = [
-                { fetch: () => fetchIcefy(cacheKey, q.id, q.s, q.e), source: 'icefy' },
-                { fetch: () => fetchVidzee(cacheKey, q.id, q.s, q.e), source: 'vidzee' },
-                { fetch: () => fetchVidnest(cacheKey, q.id, q.s, q.e), source: 'vidnest' },
-                { fetch: () => fetchVidsrc(cacheKey, q.id, q.s, q.e), source: 'vidsrc' },
-                { fetch: () => fetchVidrock(cacheKey, q.id, q.s, q.e), source: 'vidrock' },
-                { fetch: () => fetchVideasy(cacheKey, q.id, q.s, q.e), source: 'videasy' },
-                { fetch: () => fetchVidlink(cacheKey, q.id, q.s, q.e), source: 'vidlink' },
-            ].filter(f => f.source !== source);
             let found = false;
-            for (const fb of fallbacks) {
-                const fbRaw = await fb.fetch();
+            for (const cfg of SOURCES) {
+                if (cfg.key === source) continue;
+                const fbRaw = await fetchSource(cfg, cacheKey, q.id, q.s, q.e);
                 if (!fbRaw) continue;
-                const fbUrl = wrapUrl(fbRaw, fb.source);
                 const fbRawStr = typeof fbRaw === 'object' ? fbRaw.url : fbRaw;
-                const fbOk = await verifyStream(fbRawStr, fb.source);
-                if (fbOk) {
+                if (await verifyStream(fbRawStr, cfg.key)) {
                     rawUrl = fbRaw;
-                    source = fb.source;
-                    finalUrl = fbUrl;
+                    source = cfg.key;
+                    finalUrl = wrapUrl(fbRaw, cfg.key);
                     found = true;
                     break;
                 }

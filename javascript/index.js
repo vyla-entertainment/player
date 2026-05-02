@@ -114,6 +114,148 @@ if (!blocked) {
     if (id) {
         var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
 
+        (function () {
+            var SOURCES = [];
+            var TIMEOUTS = [];
+            var ITEM_H = 54;
+            var track = document.getElementById('loader-sources-track');
+            var subtitle = document.getElementById('loader-sources-subtitle');
+            if (!track) return;
+
+            var sourceTimeouts = {
+                vidlink: 12000, icefy: 8000, vidzee: 15000,
+                vidnest: 20000, vidsrc: 25000, vidrock: 20000, videasy: 20000
+            };
+
+            var fallbackSources = ['VidLink', 'Icefy', 'VidZee', 'VidNest', 'VidSrc', 'VidRock', 'Videasy'];
+            var fallbackTimeouts = [12000, 8000, 15000, 20000, 25000, 20000, 20000];
+
+            var subtitleStates = {
+                fetching: 'Fetching sources\u2026',
+                testing: 'Testing stream\u2026',
+                found: 'Stream found',
+                retrying: 'Trying next source\u2026',
+            };
+
+            function setSubtitle(state) {
+                if (!subtitle) return;
+                subtitle.textContent = subtitleStates[state] || state;
+            }
+
+            function buildCarousel(names, timeouts) {
+                track.innerHTML = '';
+                SOURCES = names.map(function (name, i) {
+                    return { name: name, timeout: timeouts[i] || 20000 };
+                });
+                TIMEOUTS = SOURCES.map(function (s) { return s.timeout; });
+                SOURCES.forEach(function (src) {
+                    var el = document.createElement('div');
+                    el.className = 'loader-source-item';
+                    el.innerHTML =
+                        '<div class="loader-source-ring"></div>' +
+                        '<div class="loader-source-info">' +
+                        '<span class="loader-source-name">' + src.name + '</span>' +
+                        '<span class="loader-source-status"></span>' +
+                        '</div>';
+                    track.appendChild(el);
+                });
+                activeIndex = 0;
+                destroyed = false;
+                updateClasses();
+                setSubtitle('fetching');
+                scheduleNext(0);
+            }
+
+            buildCarousel(fallbackSources, fallbackTimeouts);
+
+            fetch('/api?sources=1&id=' + id + (s ? '&s=' + s + '&e=' + (e || '1') : ''))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.sources && data.sources.length) {
+                        clearTimeout(stepTimer);
+                        var names = data.sources.map(function (source) {
+                            var key = source.source || 'unknown';
+                            return key.charAt(0).toUpperCase() + key.slice(1);
+                        });
+                        var timeouts = data.sources.map(function (source) {
+                            return sourceTimeouts[source.source] || 20000;
+                        });
+                        buildCarousel(names, timeouts);
+                        setSubtitle('testing');
+                    }
+                })
+                .catch(function () { });
+
+            var activeIndex = 0;
+            var destroyed = false;
+            var stepTimer = null;
+
+            function getOffset(idx) {
+                var containerMid = 108;
+                return containerMid - (idx * ITEM_H) - (ITEM_H / 2);
+            }
+
+            function setItemStatus(idx, text) {
+                var items = track.querySelectorAll('.loader-source-item');
+                if (!items[idx]) return;
+                var statusEl = items[idx].querySelector('.loader-source-status');
+                if (statusEl) statusEl.textContent = text;
+            }
+
+            function updateClasses() {
+                var items = track.querySelectorAll('.loader-source-item');
+                items.forEach(function (el, i) {
+                    el.classList.remove('lsi-active', 'lsi-adjacent', 'lsi-done', 'lsi-failed');
+                    var statusEl = el.querySelector('.loader-source-status');
+
+                    if (i === activeIndex) {
+                        el.classList.add('lsi-active');
+                        setItemStatus(i, 'Connecting\u2026');
+                    } else if (i === activeIndex - 1) {
+                        el.classList.add('lsi-adjacent', 'lsi-failed');
+                        if (statusEl) statusEl.textContent = 'No response';
+                    } else if (i === activeIndex + 1) {
+                        el.classList.add('lsi-adjacent');
+                        if (statusEl) statusEl.textContent = '';
+                    } else {
+                        if (i < activeIndex) {
+                            el.classList.add('lsi-done');
+                        }
+                        if (statusEl) statusEl.textContent = '';
+                    }
+                });
+                track.style.transform = 'translateY(' + getOffset(activeIndex) + 'px)';
+            }
+
+            function scheduleNext(idx) {
+                if (destroyed) return;
+                setItemStatus(idx, 'Connecting\u2026');
+                var delay = TIMEOUTS[idx] !== undefined ? Math.min(TIMEOUTS[idx], 3500) : 2000;
+                stepTimer = setTimeout(function () {
+                    if (destroyed) return;
+                    setItemStatus(activeIndex, 'No response');
+                    if (activeIndex < SOURCES.length - 1) {
+                        activeIndex++;
+                        updateClasses();
+                        setSubtitle('retrying');
+                        setTimeout(function () {
+                            if (!destroyed) setSubtitle('testing');
+                        }, 900);
+                        scheduleNext(activeIndex);
+                    }
+                }, delay);
+            }
+
+            var _origHide = window.hideLoader;
+            window.hideLoader = function () {
+                destroyed = true;
+                clearTimeout(stepTimer);
+                setItemStatus(activeIndex, 'Ready');
+                setSubtitle('found');
+                if (_origHide) _origHide();
+            };
+        })();
+
         function fetchWithRetry(attempts) {
             return fetch(apiUrl)
                 .then(function (r) {
@@ -197,6 +339,10 @@ if (!blocked) {
                     play(result.url, true, id);
                 }
             }).catch(function (err) {
+                var carousel = document.getElementById('loader-sources-carousel');
+                if (carousel) carousel.style.display = 'none';
+                var loaderMsg = document.getElementById('loader-msg');
+                if (loaderMsg) loaderMsg.style.display = 'none';
                 var errText = document.querySelector('.err-text');
                 if (errText) errText.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Stream Unavailable';
                 var errSub = document.querySelector('.err-sub');
@@ -1205,13 +1351,16 @@ function play(raw, skipProxy, videoId) {
     }, false);
 
     menuGroups.forEach(function (group) {
-        group.querySelector('.settings-menu-header').addEventListener('click', function (e) {
-            e.stopPropagation();
-            var isExp = group.classList.contains('expanded');
-            menuGroups.forEach(function (g) { g.classList.remove('expanded'); });
-            if (!isExp) group.classList.add('expanded');
-            haptic(6);
-        });
+        var header = group.querySelector('.settings-menu-header');
+        if (header) {
+            header.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var isExp = group.classList.contains('expanded');
+                menuGroups.forEach(function (g) { g.classList.remove('expanded'); });
+                if (!isExp) group.classList.add('expanded');
+                haptic(6);
+            });
+        }
     });
 
     btnSettings.addEventListener('click', function (e) {
@@ -1315,7 +1464,6 @@ function play(raw, skipProxy, videoId) {
         showBuffering();
 
         var loaderEl = document.getElementById('loader');
-        var loaderVid = document.getElementById('loader-bg-video');
         if (loaderEl) {
             loaderEl.style.display = '';
             loaderEl.classList.remove('out');
