@@ -1460,122 +1460,36 @@ function showUnmuteHint() {
         });
     });
 
-    function switchSource(url) {
-        var newSrc = (url.startsWith('/api') || url.includes('icefy.top')) ? url : '/api?url=' + encodeURIComponent(url);
-        var wasPlaying = !v.paused;
-        var savedTime = v.currentTime;
+function switchSource(url) {
+    var newSrc = (url.startsWith('/api') || url.includes('icefy.top')) ? url : '/api?url=' + encodeURIComponent(url);
+    var wasPlaying = !v.paused;
+    var savedTime = v.currentTime;
 
-        showBuffering();
+    var loaderEl = document.getElementById('loader');
+    var track = document.getElementById('loader-sources-track');
+    
+    if (loaderEl) {
+        if (track) track.innerHTML = ''; 
+        loaderEl.style.display = '';
+        loaderEl.classList.remove('out');
+    }
 
-        var loaderEl = document.getElementById('loader');
-        if (loaderEl) {
-            loaderEl.style.display = '';
-            loaderEl.classList.remove('out');
-        }
-        if (loaderVid) {
-            loaderVid.src = 'https://videos.pexels.com/video-files/29848606/12817774_3840_2160_30fps.mp4';
-            loaderVid.play().catch(function () { });
-        }
-
-        var loaderHideTimeout = null;
-        var switched = false;
-
-        function onSwitchReady() {
-            if (switched) return;
-            switched = true;
-            clearTimeout(loaderHideTimeout);
-            hideBuffering();
+    if (Hls.isSupported() && typeof hls !== 'undefined') {
+        hls.destroy();
+        hls = new Hls(); 
+        hls.loadSource(newSrc);
+        hls.attachMedia(v);
+        v.addEventListener('canplay', function onSwitch() {
+            v.removeEventListener('canplay', onSwitch);
+            v.currentTime = savedTime;
+            if (wasPlaying) v.play();
             if (loaderEl) {
                 loaderEl.classList.add('out');
-                setTimeout(function () { loaderEl.style.display = 'none'; }, 1000);
+                setTimeout(function() { loaderEl.style.display = 'none'; }, 1000);
             }
-            function doSeekAndPlay() {
-                if (savedTime > 0 && !isNaN(v.duration) && v.duration > 0 && savedTime < v.duration) {
-                    v.currentTime = savedTime;
-                    v.addEventListener('seeked', function onSeeked() {
-                        v.removeEventListener('seeked', onSeeked);
-                        if (wasPlaying) v.play().catch(function () { });
-                    }, { once: true });
-                } else {
-                    if (wasPlaying) v.play().catch(function () { });
-                }
-            }
-
-            if (!isNaN(v.duration) && v.duration > 0) {
-                doSeekAndPlay();
-            } else {
-                v.addEventListener('canplay', function onCp() {
-                    v.removeEventListener('canplay', onCp);
-                    doSeekAndPlay();
-                });
-            }
-        }
-
-        loaderHideTimeout = setTimeout(onSwitchReady, 15000);
-
-        if (Hls.isSupported() && typeof hls !== 'undefined') {
-            hls.stopLoad();
-            hls.detachMedia();
-            hls.destroy();
-            var switchIsIcefy = newSrc.includes('icefy.top');
-            var switchConfig = {
-                startLevel: 0,
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                maxBufferSize: 60 * 1000 * 1000,
-                backBufferLength: 10,
-                maxBufferHole: 0.5,
-                frontBufferFlushThreshold: 30,
-                abrEwmaDefaultEstimate: 3000000,
-                abrBandWidthFactor: 0.75,
-                abrBandWidthUpFactor: 0.7,
-                nudgeMaxRetry: 5,
-                nudgeOffset: 0.2,
-                fragLoadingTimeOut: 20000,
-                manifestLoadingTimeOut: 20000,
-                levelLoadingTimeOut: 20000,
-                testBandwidth: true,
-            };
-            if (switchIsIcefy) {
-                switchConfig.pLoader = (function () {
-                    function PLoader(config) { }
-                    PLoader.prototype.load = function (context, cfg, callbacks) {
-                        var xhr = new XMLHttpRequest();
-                        xhr.open('GET', '/api?icefy_key=' + encodeURIComponent(context.url), true);
-                        xhr.responseType = 'arraybuffer';
-                        xhr.onload = function () {
-                            callbacks.onSuccess({ data: xhr.response, url: context.url }, { trequest: performance.now(), tfirst: performance.now(), tload: performance.now(), total: xhr.response.byteLength }, context);
-                        };
-                        xhr.onerror = function () {
-                            callbacks.onError({ code: xhr.status, text: xhr.statusText }, context, null);
-                        };
-                        xhr.send();
-                    };
-                    PLoader.prototype.abort = function () { };
-                    PLoader.prototype.destroy = function () { };
-                    return PLoader;
-                })();
-            }
-            hls = new Hls(switchConfig);
-            hls.loadSource(newSrc);
-            hls.attachMedia(v);
-            hls.once(Hls.Events.MANIFEST_PARSED, function () {
-                buildQualityOpts();
-            });
-            v.addEventListener('canplay', function onSwitchCp() {
-                v.removeEventListener('canplay', onSwitchCp);
-                onSwitchReady();
-            });
-        } else {
-            v.src = newSrc;
-            v.load();
-            v.addEventListener('canplay', function onSwitchCp() {
-                v.removeEventListener('canplay', onSwitchCp);
-                onSwitchReady();
-            });
-        }
-
+        }, { once: true });
     }
+}
 
     var sources = [];
     var currentSourceIndex = 0;
@@ -1606,71 +1520,66 @@ function showUnmuteHint() {
         });
     }
 
-    function buildSourceList() {
-        sourceListEl.innerHTML = '';
-        if (sourceBtnLabel) {
-            sourceBtnLabel.innerHTML = 'SOURCE ' + (currentSourceIndex + 1) + ' <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-        }
-        sources.forEach(function (source, i) {
-            var item = document.createElement('div');
-            var isActive = i === currentSourceIndex;
-            item.className = 'ep-item' + (isActive ? ' current' : '');
-            item.innerHTML =
-                '<div class="source-icon-wrap"><i class="fa-solid fa-' + (isActive ? 'circle-check' : 'circle') + '"></i></div>' +
-                '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">Source ' + (i + 1) + '</span></div></div>' +
-                (isActive ? '<i class="fa-solid fa-check source-active-check"></i>' : '');
-            if (!isActive) {
-                item.addEventListener('click', function () {
-                    currentSourceIndex = i;
-                    switchSource(source.url);
-                    buildSourceList();
-                    closeSourcePanel();
-                    haptic(10);
-                });
-            }
-            sourceListEl.appendChild(item);
-        });
+function buildSourceList() {
+    sourceListEl.innerHTML = '';
+    var activeName = sources[currentSourceIndex] ? (sources[currentSourceIndex].source || 'Source') : 'Source';
+    activeName = activeName.charAt(0).toUpperCase() + activeName.slice(1);
+    
+    if (sourceBtnLabel) {
+        sourceBtnLabel.innerHTML = activeName.toUpperCase() + ' <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
     }
 
-    function fetchSources() {
-        if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
-        if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-        sourceListEl.innerHTML = '<div class="source-skeleton"><div class="source-skel-item"></div><div class="source-skel-item"></div><div class="source-skel-item"></div></div>';
-        var endpoint = s
-            ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1')
-            : '/api?sources=1&id=' + id;
-        fetch(endpoint)
-            .then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(function (d) {
-                if (!d.sources || !d.sources.length) {
-                    if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'NO SOURCES <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-                    sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">No sources available</span></div></div>';
-                    return;
+    sources.forEach(function (source, i) {
+        var item = document.createElement('div');
+        var isActive = i === currentSourceIndex;
+        var name = source.source || 'Source ' + (i + 1);
+        name = name.charAt(0).toUpperCase() + name.slice(1);
+
+        item.className = 'ep-item' + (isActive ? ' current' : '');
+        item.innerHTML =
+            '<div class="source-icon-wrap"><i class="fa-solid fa-' + (isActive ? 'circle-check' : 'circle') + '"></i></div>' +
+            '<div class="ep-info"><div class="ep-info-row"><span class="ep-name">' + name + '</span></div></div>' +
+            (isActive ? '<i class="fa-solid fa-check source-active-check"></i>' : '');
+
+        item.addEventListener('click', function () {
+            if (isActive) return;
+            currentSourceIndex = i;
+            closeSourcePanel();
+            haptic(10);
+            switchSource(source.url);
+            buildSourceList();
+        });
+        sourceListEl.appendChild(item);
+    });
+}
+
+function fetchSources() {
+    if (sourceBtnWrap) sourceBtnWrap.style.display = 'flex';
+    if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'LOADING <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+    sourceListEl.innerHTML = '<div class="source-skeleton"><div class="source-skel-item"></div><div class="source-skel-item"></div><div class="source-skel-item"></div>';
+    var endpoint = s ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1') : '/api?sources=1&id=' + id;
+    fetch(endpoint)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d.sources || !d.sources.length) {
+                if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'NO SOURCES <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+                return;
+            }
+            sources = d.sources;
+            currentSourceIndex = 0;
+            var playingUrl = src;
+            for (var i = 0; i < sources.length; i++) {
+                if (sources[i].url === playingUrl) {
+                    currentSourceIndex = i;
+                    break;
                 }
-                sources = d.sources;
-                var playingUrl = src;
-                currentSourceIndex = 0;
-                for (var i = 0; i < sources.length; i++) {
-                    var sUrl = sources[i].url;
-                    if (sUrl && playingUrl && (
-                        playingUrl.includes(encodeURIComponent(sUrl.split('?')[0])) ||
-                        sUrl === playingUrl ||
-                        (playingUrl.startsWith('/api?vyla_inline') && sUrl.startsWith('/api?vyla_inline'))
-                    )) {
-                        currentSourceIndex = i;
-                        break;
-                    }
-                }
-                buildSourceList();
-            })
-            .catch(function () {
-                if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'SOURCE: 1 <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
-                sourceListEl.innerHTML = '<div class="ep-item" style="color:var(--white-45);cursor:default;pointer-events:none;"><div class="ep-info"><span class="ep-name" style="color:var(--white-45);">Failed to load</span></div></div>';
-            });
-    }
+            }
+            buildSourceList();
+        })
+        .catch(function () {
+            if (sourceBtnLabel) sourceBtnLabel.innerHTML = 'ERROR <i class="fa-solid fa-chevron-down" style="font-size:9px;"></i>';
+        });
+}
 
     fetchSources();
 
