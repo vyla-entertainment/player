@@ -92,6 +92,38 @@ body {
     display: none !important;
 }
 
+#loader-bg::-webkit-media-controls-panel {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-play-button {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-timeline {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-current-time-display {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-time-remaining-display {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-mute-button {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-toggle-closed-captions-button {
+    display: none !important;
+}
+
+#loader-bg::-webkit-media-controls-fullscreen-button {
+    display: none !important;
+}
+
 #loader.out {
     animation: loaderOut 1s var(--ease-out) forwards;
     pointer-events: none
@@ -381,7 +413,9 @@ video.ready {
     font-size: 1rem;
     font-weight: 500;
     color: var(--white-92);
-    letter-spacing: 0.04em
+    letter-spacing: 0.04em;
+    display: block;
+    font-size: 16px;
 }
 
 .tap-zone {

@@ -375,7 +375,7 @@ if (!blocked) {
     } else {
         var errText = document.querySelector('.err-text');
         if (errText) {
-            errText.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> No ID Provided';
+            errText.innerHTML = 'No ID Provided';
             document.querySelector('.err-text + *') && (document.querySelector('.err-text').insertAdjacentHTML('afterend', '<div class="err-sub">Add an <code>?id=</code> parameter to the URL — e.g. <code>?id=550</code> for a movie or <code>?id=1396&s=1&e=1</code> for a show.</div>'));
         }
         document.getElementById('error-screen').classList.add('show');
@@ -1465,7 +1465,7 @@ function play(raw, skipProxy, videoId) {
                 document.getElementById('lbl-subtitle').textContent = 'Off';
                 subLangList.innerHTML =
                     '<div class="sub-lang-empty" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;text-align:center;">' +
-                    '<i class="fa-solid fa-circle-exclamation" style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
+                    'style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
                 return;
             }
 
@@ -1489,7 +1489,7 @@ function play(raw, skipProxy, videoId) {
                 if (!passed.length) {
                     subLangList.innerHTML =
                         '<div class="sub-lang-empty" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;text-align:center;">' +
-                        '<i class="fa-solid fa-circle-exclamation" style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
+                        'None available</div>';
                     return;
                 }
 
