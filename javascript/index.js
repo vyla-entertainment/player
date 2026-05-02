@@ -928,56 +928,60 @@ function play(raw, skipProxy, videoId) {
         }
     }
 
-    function showUnmuteHint() {
-        var _unmuteDone = false;
+function showUnmuteHint() {
+    var hint = document.getElementById('unmute-hint');
+    var _unmuteDone = false;
 
-        function doUnmute() {
-            if (_unmuteDone) return;
-            _unmuteDone = true;
-            v.muted = false;
-            v.volume = 1;
-            _autoplayUnlocked = true;
-            _pendingUnmute = false;
-            hint.style.opacity = '0';
-            setTimeout(function () { hint.style.display = 'none'; }, 300);
-            hint.removeEventListener('touchend', onHintTouch);
-            hint.removeEventListener('click', onHintClick);
-            document.removeEventListener('touchend', onDocTouch, true);
-            document.removeEventListener('click', onDocClick, true);
-            haptic();
-        }
+    hint.style.opacity = '1';
+    hint.style.pointerEvents = 'auto';
 
-        function onHintTouch(ev) {
-            ev.stopPropagation();
-            ev.preventDefault();
-            doUnmute();
-        }
-
-        function onHintClick(ev) {
-            ev.stopPropagation();
-            doUnmute();
-        }
-
-        var _docListenerReady = false;
-        setTimeout(function () { _docListenerReady = true; }, 600);
-
-        function onDocTouch(ev) {
-            if (!_docListenerReady) return;
-            if (ev.target.id === '__hx') return;
-            doUnmute();
-        }
-
-        function onDocClick(ev) {
-            if (!_docListenerReady) return;
-            if (ev.target.id === '__hx') return;
-            doUnmute();
-        }
-
-        hint.addEventListener('touchend', onHintTouch, { passive: false });
-        hint.addEventListener('click', onHintClick);
-        document.addEventListener('touchend', onDocTouch, true);
-        document.addEventListener('click', onDocClick, true);
+    function doUnmute() {
+        if (_unmuteDone) return;
+        _unmuteDone = true;
+        v.muted = false;
+        v.volume = 1;
+        _autoplayUnlocked = true;
+        _pendingUnmute = false;
+        hint.style.opacity = '0';
+        setTimeout(function () { hint.style.display = 'none'; }, 300);
+        hint.removeEventListener('touchend', onHintTouch);
+        hint.removeEventListener('click', onHintClick);
+        document.removeEventListener('touchend', onDocTouch, true);
+        document.removeEventListener('click', onDocClick, true);
+        haptic();
     }
+
+    function onHintTouch(ev) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        doUnmute();
+    }
+
+    function onHintClick(ev) {
+        ev.stopPropagation();
+        doUnmute();
+    }
+
+    var _docListenerReady = false;
+    setTimeout(function () { _docListenerReady = true; }, 600);
+
+    function onDocTouch(ev) {
+        if (!_docListenerReady) return;
+        if (ev.target.id === '__hx') return;
+        doUnmute();
+    }
+
+    function onDocClick(ev) {
+        if (!_docListenerReady) return;
+        if (ev.target.id === '__hx') return;
+        doUnmute();
+    }
+
+    hint.addEventListener('touchend', onHintTouch, { passive: false });
+    hint.addEventListener('click', onHintClick);
+    document.addEventListener('touchend', onDocTouch, true);
+    document.addEventListener('click', onDocClick, true);
+}
 
     function unlockOnInteraction() {
         if (_autoplayUnlocked) return;
