@@ -32,7 +32,7 @@ This project explores WebAssembly (WASM) and Node.js integration for handling se
 - **Frontend**: Vanilla JavaScript, HLS.js
 - **WASM**: Go-compiled cryptographic module
 - **Styling**: CSS3 with glassmorphism effects
-- **APIs**: TMDB for metadata, Vidlink/VidZee for streaming
+- **APIs**: TMDB for metadata, vixsrc/VidZee for streaming
 
 ## Architecture
 

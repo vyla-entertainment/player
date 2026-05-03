@@ -2,8 +2,8 @@
 
 const SOURCES = [
     {
-        key: 'vidlink',
-        label: 'VidLink',
+        key: 'vixsrc',
+        label: 'vixsrc',
         proxyParam: 'vl',
         timeout: 12000,
         jitter: 0,
@@ -16,6 +16,8 @@ const SOURCES = [
         timeout: 8000,
         jitter: 200,
         retries: 2,
+        skipProxy: true,
+        multiBase: true,
     },
     {
         key: 'vidzee',
@@ -24,6 +26,7 @@ const SOURCES = [
         timeout: 15000,
         jitter: 400,
         retries: 3,
+        sourcesTimeout: 5000,
     },
     {
         key: 'vidnest',
@@ -64,6 +67,7 @@ const SOURCE_MAP = Object.fromEntries(SOURCES.map(s => [s.key, s]));
 const ALLOWED_ORIGINS = [
     'https://vyla.pages.dev',
     'http://localhost:7860',
+    'http://169.254.162.163:7860',
 ];
 
 const HEALTH_PROBE_ID = '550';

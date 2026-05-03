@@ -80,4 +80,24 @@ async function getSources(id, s, e) {
     return [...new Set(urls)];
 }
 
-module.exports = { getStream, getSources, HEADERS };
+async function proxyStream(url, res, { fetchUpstream, rewriteM3u8 }) {
+    const upstream = await fetchUpstream(url, 0, HEADERS);
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewriteM3u8(body, url, '&vy=1'));
+    }
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    upstream.pipe(res);
+}
+
+const VERIFY_HEADERS = { ...HEADERS };
+
+module.exports = { getStream, getSources, proxyStream, VERIFY_HEADERS, HEADERS };

@@ -9,10 +9,7 @@
 <body>
 
     <div id="loader">
-        <video id="loader-bg" autoplay loop muted playsinline disablepictureinpicture
-            controlslist="nodownload nofullscreen noremoteplayback"
-            src="https://videos.pexels.com/video-files/32399542/13820720_2560_1440_30fps.mp4">
-        </video>
+        <div id="loader-bg"></div>
         <span id="loader-msg"></span>
         <div id="loader-sources-carousel">
             <div id="loader-sources-track"></div>
@@ -24,11 +21,6 @@
 
         <div id="title-bar">
             <span id="title-text"></span>
-            <a href="https://vyla.pages.dev/discord" target="_blank" id="discord-title-btn"
-                style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--white-45);letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:color 0.2s ease;">
-                <i class="fa-brands fa-discord" style="font-size:14px;"></i>
-                <span>Discord</span>
-            </a>
         </div>
 
         <div id="tap-left" class="tap-zone"></div>
@@ -265,7 +257,7 @@
                     <div class="sub-special-list">
                         <div class="sub-special-item sub-off-item active-sub-item" data-sub="off">
                             <span>Off</span>
-                            <i class="fa-solid fa-circle-check sub-active-check"></i>
+                            <i class="fa-solid fa-check"></i>
                         </div>
                         <div class="sub-special-item" data-sub="auto">Auto select</div>
                         <div class="sub-special-item" data-sub="upload">Drop or upload file</div>
@@ -274,117 +266,242 @@
                     <div class="sub-lang-divider"></div>
                     <div class="sub-lang-list" id="subtitle-opts"></div>
                 </div>
+
                 <div id="sub-custom-view" style="display:none;">
-                    <div class="sub-custom-body">
-                        <div class="sub-custom-row">
-                            <div class="sub-custom-row-left">
-                                <span class="sub-custom-label">Native video subtitles</span>
-                                <span class="sub-custom-hint">Broadcast subtitles for native fullscreen and PiP</span>
-                            </div>
-                            <div class="settings-toggle" id="native-sub-toggle">
-                                <div class="settings-toggle-knob"></div>
+                    <div class="sub-presets-section">
+                        <div class="sub-custom-section-lbl">Quick Styles</div>
+                        <div class="sub-presets-grid">
+                            <button class="sub-preset-btn active" data-preset="default">
+                                <div class="sub-preset-preview default-preview">Sample Text</div>
+                                <span>Default</span>
+                            </button>
+                            <button class="sub-preset-btn" data-preset="clean">
+                                <div class="sub-preset-preview clean-preview">Sample Text</div>
+                                <span>Clean</span>
+                            </button>
+                            <button class="sub-preset-btn" data-preset="high-contrast">
+                                <div class="sub-preset-preview high-contrast-preview">Sample Text</div>
+                                <span>High Contrast</span>
+                            </button>
+                            <button class="sub-preset-btn" data-preset="cinema">
+                                <div class="sub-preset-preview cinema-preview">Sample Text</div>
+                                <span>Cinema</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="sub-simple-controls">
+                        <div class="sub-custom-section-lbl">Quick Adjustments</div>
+
+                        <div class="sub-simple-row">
+                            <div class="sub-simple-control">
+                                <label class="sub-simple-label">Text Size</label>
+                                <div class="sub-size-buttons">
+                                    <button class="sub-size-btn" data-size="small">A</button>
+                                    <button class="sub-size-btn active" data-size="medium">A</button>
+                                    <button class="sub-size-btn" data-size="large">A</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="sub-custom-section">
-                            <span class="sub-custom-section-lbl">Subtitle delay</span>
-                            <input type="range" id="sub-delay-range" class="sub-blue-slider" min="-10" max="10"
-                                step="0.1" value="0">
-                            <div class="sub-delay-row">
-                                <button class="sub-delay-side-btn" id="sub-delay-heard"><i
-                                        class="fa-solid fa-chevron-left"></i>
-                                    Heard audio</button>
-                                <span class="sub-delay-val-badge" id="sub-delay-val">0.0s</span>
-                                <button class="sub-delay-side-btn" id="sub-delay-saw">Saw caption <i
-                                        class="fa-solid fa-chevron-right"></i></button>
+
+                        <div class="sub-simple-row">
+                            <div class="sub-simple-control">
+                                <label class="sub-simple-label">Position</label>
+                                <div class="sub-position-buttons">
+                                    <button class="sub-pos-btn" data-pos="bottom">Bottom</button>
+                                    <button class="sub-pos-btn active" data-pos="mid">Middle</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-row">
-                            <span class="sub-custom-label">Fix capitalization</span>
-                            <div class="settings-toggle" id="sub-fix-caps-toggle">
-                                <div class="settings-toggle-knob"></div>
+
+                        <div class="sub-simple-row">
+                            <div class="sub-simple-control">
+                                <label class="sub-simple-label">Background</label>
+                                <div class="sub-bg-buttons">
+                                    <button class="sub-bg-btn active" data-bg="none">None</button>
+                                    <button class="sub-bg-btn" data-bg="light">Light</button>
+                                    <button class="sub-bg-btn" data-bg="dark">Dark</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-section">
-                            <span class="sub-custom-section-lbl">Background opacity</span>
-                            <div class="sub-slider-row">
-                                <input type="range" id="sub-bg-opacity-range" class="sub-blue-slider" min="0" max="100"
-                                    value="75">
-                                <span class="sub-slider-val" id="sub-bg-opacity-val">75%</span>
+                    </div>
+
+                    <div class="sub-advanced-toggle">
+                        <button id="sub-advanced-btn" class="sub-advanced-toggle-btn">
+                            <span>Advanced Settings</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </div>
+
+                    <div id="sub-advanced-content" style="display:none;">
+                        <div class="sub-custom-body">
+                            <div class="sub-custom-row">
+                                <div class="sub-custom-row-left">
+                                    <span class="sub-custom-label">Native video subtitles</span>
+                                    <span class="sub-custom-hint">Broadcast subtitles for native fullscreen and
+                                        PiP</span>
+                                </div>
+                                <div class="settings-toggle" id="native-sub-toggle">
+                                    <div class="settings-toggle-knob"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-row">
-                            <div class="sub-custom-row-left">
-                                <span class="sub-custom-label">Background blur</span>
-                                <span class="sub-custom-hint">Disabling caption background blur may fix some flickering
-                                    issues</span>
+                            <div class="sub-custom-section">
+                                <span class="sub-custom-section-lbl">Subtitle delay</span>
+                                <input type="range" id="sub-delay-range" class="sub-blue-slider" min="-10" max="10"
+                                    step="0.1" value="0">
+                                <div class="sub-delay-row">
+                                    <button class="sub-delay-side-btn" id="sub-delay-heard"><i
+                                            class="fa-solid fa-chevron-left"></i>
+                                        Heard audio</button>
+                                    <span class="sub-delay-val-badge" id="sub-delay-val">0.0s</span>
+                                    <button class="sub-delay-side-btn" id="sub-delay-saw">Saw caption <i
+                                            class="fa-solid fa-chevron-right"></i></button>
+                                </div>
                             </div>
-                            <div class="settings-toggle on" id="sub-bg-blur-toggle">
-                                <div class="settings-toggle-knob"></div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row">
+                                <span class="sub-custom-label">Fix capitalization</span>
+                                <div class="settings-toggle" id="sub-fix-caps-toggle">
+                                    <div class="settings-toggle-knob"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-section">
-                            <span class="sub-custom-section-lbl">Background blur intensity</span>
-                            <div class="sub-slider-row">
-                                <input type="range" id="sub-blur-intensity-range" class="sub-blue-slider" min="0"
-                                    max="100" value="50">
-                                <span class="sub-slider-val" id="sub-blur-intensity-val">50%</span>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-section">
+                                <span class="sub-custom-section-lbl">Background opacity</span>
+                                <div class="sub-slider-row">
+                                    <input type="range" id="sub-bg-opacity-range" class="sub-blue-slider" min="0"
+                                        max="100" value="75">
+                                    <span class="sub-slider-val" id="sub-bg-opacity-val">75%</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-section">
-                            <span class="sub-custom-section-lbl">Text size</span>
-                            <div class="sub-slider-row">
-                                <input type="range" id="sub-text-size-range" class="sub-blue-slider" min="50" max="200"
-                                    value="100">
-                                <span class="sub-slider-val" id="sub-text-size-val">100%</span>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row">
+                                <div class="sub-custom-row-left">
+                                    <span class="sub-custom-label">Background blur</span>
+                                    <span class="sub-custom-hint">Disabling caption background blur may fix some
+                                        flickering
+                                        issues</span>
+                                </div>
+                                <div class="settings-toggle on" id="sub-bg-blur-toggle">
+                                    <div class="settings-toggle-knob"></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-row sub-custom-row-between">
-                            <span class="sub-custom-label">Text style</span>
-                            <div class="select-wrapper" style="min-width:110px;">
-                                <select id="sub-text-style-select" class="settings-select">
-                                    <option value="sans">Default</option>
-                                    <option value="serif">Serif</option>
-                                    <option value="mono">Mono</option>
-                                    <option value="cursive">Cursive</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down"></i>
+                            <div class="sub-custom-section">
+                                <span class="sub-custom-section-lbl">Background blur intensity</span>
+                                <div class="sub-slider-row">
+                                    <input type="range" id="sub-blur-intensity-range" class="sub-blue-slider" min="0"
+                                        max="100" value="50">
+                                    <span class="sub-slider-val" id="sub-blur-intensity-val">50%</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-row">
-                            <span class="sub-custom-label">Bold text</span>
-                            <div class="settings-toggle" id="sub-bold-toggle">
-                                <div class="settings-toggle-knob"></div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-section">
+                                <span class="sub-custom-section-lbl">Text size</span>
+                                <div class="sub-slider-row">
+                                    <input type="range" id="sub-text-size-range" class="sub-blue-slider" min="50"
+                                        max="200" value="100">
+                                    <span class="sub-slider-val" id="sub-text-size-val">100%</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-row sub-custom-row-between">
-                            <span class="sub-custom-label">Color</span>
-                            <div class="sub-color-swatches">
-                                <button class="sub-swatch sub-swatch-active" data-color="#ffffff"
-                                    style="background:#fff;"><i class="fa-solid fa-check"
-                                        style="color:#000;"></i></button>
-                                <button class="sub-swatch" data-color="#7b8cde" style="background:#7b8cde;"></button>
-                                <button class="sub-swatch" data-color="#e8d44d" style="background:#e8d44d;"></button>
-                                <button class="sub-swatch" data-color="#4caf50" style="background:#4caf50;"></button>
-                                <button class="sub-swatch sub-swatch-brush" data-color="custom"
-                                    style="background:#2a2a2a;"><i class="fa-solid fa-paint-brush"
-                                        style="color:var(--white-60);font-size:12px;"></i></button>
-                                <input type="color" id="sub-custom-color-picker" value="#ffffff" style="display:none;">
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row sub-custom-row-between">
+                                <span class="sub-custom-label">Text style</span>
+                                <div class="select-wrapper" style="min-width:110px;">
+                                    <select id="sub-text-style-select" class="settings-select">
+                                        <option value="sans">Default</option>
+                                        <option value="serif">Serif</option>
+                                        <option value="mono">Mono</option>
+                                        <option value="cursive">Cursive</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="sub-custom-divider"></div>
-                        <div class="sub-custom-row sub-custom-row-between">
-                            <span class="sub-custom-label">Vertical position</span>
-                            <div class="sub-pos-btns">
-                                <button class="sub-pos-btn sub-pos-active" data-pos="default">Default</button>
-                                <button class="sub-pos-btn" data-pos="high">High</button>
-                                <button class="sub-reset-btn" id="sub-custom-reset-btn">Reset</button>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row">
+                                <span class="sub-custom-label">Bold text</span>
+                                <div class="settings-toggle" id="sub-bold-toggle">
+                                    <div class="settings-toggle-knob"></div>
+                                </div>
+                            </div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row sub-custom-row-between">
+                                <span class="sub-custom-label">Color</span>
+                                <div class="sub-color-swatches">
+                                    <button class="sub-swatch sub-swatch-active" data-color="#ffffff"
+                                        style="background:#fff;"><i class="fa-solid fa-check"
+                                            style="color:#000;"></i></button>
+                                    <button class="sub-swatch" data-color="#7b8cde"
+                                        style="background:#7b8cde;"></button>
+                                    <button class="sub-swatch" data-color="#e8d44d"
+                                        style="background:#e8d44d;"></button>
+                                    <button class="sub-swatch" data-color="#4caf50"
+                                        style="background:#4caf50;"></button>
+                                    <button class="sub-swatch sub-swatch-brush" data-color="custom"
+                                        style="background:#2a2a2a;"><i class="fa-solid fa-paint-brush"
+                                            style="color:var(--white-60);font-size:12px;"></i></button>
+                                    <input type="color" id="sub-custom-color-picker" value="#ffffff"
+                                        style="display:none;">
+                                </div>
+                            </div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row sub-custom-row-between">
+                                <span class="sub-custom-label">Background color</span>
+                                <div class="sub-color-swatches">
+                                    <button class="sub-bg-swatch sub-bg-swatch-active" data-bg-color="transparent"
+                                        style="background:linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);background-size:10px 10px;background-position:0 0, 0 5px, 5px -5px, -5px 0px;"><i
+                                            class="fa-solid fa-check" style="color:#000;"></i></button>
+                                    <button class="sub-bg-swatch" data-bg-color="#000000"
+                                        style="background:#000000;"></button>
+                                    <button class="sub-bg-swatch" data-bg-color="#1a1a1a"
+                                        style="background:#1a1a1a;"></button>
+                                    <button class="sub-bg-swatch" data-bg-color="#2d2d2d"
+                                        style="background:#2d2d2d;"></button>
+                                    <button class="sub-bg-swatch sub-bg-swatch-brush" data-bg-color="custom"
+                                        style="background:#2a2a2a;"><i class="fa-solid fa-paint-brush"
+                                            style="color:var(--white-60);font-size:12px;"></i></button>
+                                    <input type="color" id="sub-custom-bg-color-picker" value="#000000"
+                                        style="display:none;">
+                                </div>
+                            </div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-section">
+                                <span class="sub-custom-section-lbl">Overall transparency</span>
+                                <div class="sub-slider-row">
+                                    <input type="range" id="sub-overall-opacity-range" class="sub-blue-slider" min="0"
+                                        max="100" value="100">
+                                    <span class="sub-slider-val" id="sub-overall-opacity-val">100%</span>
+                                </div>
+                            </div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row sub-custom-row-between">
+                                <span class="sub-custom-label">Text shadow</span>
+                                <div class="select-wrapper" style="min-width:110px;">
+                                    <select id="sub-text-shadow-select" class="settings-select">
+                                        <option value="none">None</option>
+                                        <option value="shadow">Shadow</option>
+                                        <option value="outline">Outline</option>
+                                        <option value="both">Both</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                            </div>
+                            <div class="sub-custom-divider"></div>
+                            <div class="sub-custom-row sub-custom-row-between">
+                                <span class="sub-custom-label">Vertical position</span>
+                                <div class="select-wrapper" style="min-width:110px;">
+                                    <select id="sub-pos-select" class="settings-select">
+                                        <option value="mid">Very Bottom</option>
+                                        <option value="low">Bottom</option>
+                                        <option value="mid">Mid</option>
+                                    </select>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                            </div>
+                            <div class="settings-list">
+                                <div class="settings-list-item" id="sub-custom-reset-btn"><i
+                                        class="fa-solid fa-rotate-left"></i>
+                                    Reset
+                                    to Default</div>
                             </div>
                         </div>
                     </div>

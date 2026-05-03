@@ -66,11 +66,11 @@
 
 body {
     margin: 0;
-    background: #000;
+    background: var(--bg);
     overflow: hidden;
     position: fixed;
     inset: 0;
-    font-family: var(--font)
+    font-family: var(--font);
 }
 
 #loader {
@@ -81,47 +81,26 @@ body {
     pointer-events: all
 }
 
+#loader::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at center,
+            rgba(0, 0, 0, 0) 40%,
+            rgba(0, 0, 0, 0.9) 100%);
+    z-index: 1000;
+}
+
 #loader-bg {
     position: absolute;
     inset: 0;
     z-index: 5;
-    object-fit: cover;
-}
-
-#loader-bg::-webkit-media-controls {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-panel {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-play-button {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-timeline {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-current-time-display {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-time-remaining-display {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-mute-button {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-toggle-closed-captions-button {
-    display: none !important;
-}
-
-#loader-bg::-webkit-media-controls-fullscreen-button {
-    display: none !important;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #000;
+    transition: background-image 0.3s ease;
 }
 
 #loader.out {
@@ -157,14 +136,12 @@ body {
 
 .loader-msg-title {
     color: var(--white-85);
-    font-family: var(--font);
     font-size: 15px;
     font-weight: 600;
 }
 
 .loader-msg-url {
     color: var(--white-45);
-    font-family: var(--font);
     font-size: 13px;
 }
 
@@ -198,7 +175,6 @@ body {
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    font-family: var(--font);
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.08em;
@@ -256,6 +232,8 @@ body {
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), black calc(100% - 2.5px));
     mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), black calc(100% - 2.5px));
     animation: lsrSpin 0.9s linear infinite;
+    box-shadow: 0 0 8px rgba(0, 0, 0);
+    text-shadow: 0 1px 2px rgba(0, 0, 0);
 }
 
 .loader-source-item.lsi-done .loader-source-ring {
@@ -296,7 +274,6 @@ body {
 }
 
 .loader-source-name {
-    font-family: var(--font);
     font-size: 15px;
     font-weight: 600;
     color: var(--white-45);
@@ -305,26 +282,30 @@ body {
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .loader-source-item.lsi-active .loader-source-name {
     color: var(--white-92);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .loader-source-item.lsi-adjacent .loader-source-name {
     color: var(--white-45);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .loader-source-status {
-    font-family: var(--font);
     font-size: 12px;
     font-weight: 400;
     color: var(--white-22);
     letter-spacing: 0.01em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .loader-source-item.lsi-active .loader-source-status {
     color: var(--white-45);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .err-sub {
@@ -338,11 +319,9 @@ body {
 }
 
 .err-sub code {
-    background: rgba(255, 255, 255, 0.1);
     border-radius: 5px;
     padding: 1px 6px;
     font-size: 12px;
-    font-family: monospace;
     color: var(--white-92);
 }
 
@@ -545,11 +524,13 @@ video.ready {
     pointer-events: none;
     z-index: 16;
     opacity: 0;
-    transition: opacity 0.3s ease
+    transition: opacity 0.3s ease, text-shadow 0.3s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 #buffering-spinner.active {
-    opacity: 1
+    opacity: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 #buffering-spinner svg {
@@ -730,9 +711,6 @@ video.ready {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: rgba(0, 0, 0, 0.1);
-    -webkit-backdrop-filter: var(--menu-blur-strong);
-    backdrop-filter: var(--menu-blur-strong);
 }
 
 #ep-panel-header-top {
@@ -766,7 +744,6 @@ video.ready {
     background: transparent;
     border: 1px solid transparent;
     color: var(--white-60);
-    font-family: var(--font);
     font-size: 13px;
     width: 30px;
     height: 30px;
@@ -885,7 +862,6 @@ video.ready {
     top: 4px;
     left: 4px;
     background: var(--menu-bg);
-    ;
     backdrop-filter: var(--menu-blur-strong);
     -webkit-backdrop-filter: var(--menu-blur-strong);
     color: var(--white-92);
@@ -893,7 +869,6 @@ video.ready {
     font-weight: 700;
     padding: 2px 5px;
     border-radius: 4px;
-    font-family: var(--font);
     line-height: 1.3;
 }
 
@@ -991,10 +966,6 @@ video.ready {
         padding: 0px 20px 14px 20px;
         top: 0;
         z-index: 10;
-        background: var(--menu-bg);
-        ;
-        -webkit-backdrop-filter: var(--menu-blur);
-        backdrop-filter: var(--menu-blur);
     }
 
     #ep-panel-header-top {
@@ -1031,7 +1002,6 @@ video.ready {
         background: transparent;
         border: 1px solid transparent;
         color: var(--white-60);
-        font-family: var(--font);
         font-size: 13px;
         width: 30px;
         height: 30px;
@@ -1176,7 +1146,6 @@ video.ready {
     background: var(--white-08);
     border: 1px solid transparent;
     color: var(--white-60);
-    font-family: var(--font);
     font-size: 13px;
     font-weight: 500;
     padding: 6px 14px;
@@ -1319,7 +1288,6 @@ video.ready {
     transition: transform 0.18s var(--ease-smooth);
     will-change: transform, left;
     box-shadow: 0 1px 4px var(--menu-bg);
-    ;
 }
 
 #track-wrap:hover #thumb,
@@ -1497,12 +1465,15 @@ video.ready {
     inset: 0;
     z-index: 9998;
     background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: var(--menu-blur);
+    -webkit-backdrop-filter: var(--menu-blur);
+    opacity: 0;
+    transition: opacity 0.28s var(--ease-out);
 }
 
 #settings-overlay-backdrop.open {
     display: block;
+    opacity: 1;
 }
 
 #settings-modal-wrap {
@@ -1531,9 +1502,9 @@ video.ready {
 #settings-panel {
     width: 100%;
     max-width: 400px;
-    background: var(--menu-bg);
-    -webkit-backdrop-filter: blur(24px) saturate(2);
-    backdrop-filter: blur(24px) saturate(2);
+    background: var(--menu-bg-strong);
+    backdrop-filter: var(--menu-blur-strong);
+    -webkit-backdrop-filter: var(--menu-blur-strong);
     border-radius: 18px;
     overflow-y: auto;
     overflow-x: hidden;
@@ -1543,6 +1514,7 @@ video.ready {
     min-height: 160px;
     max-height: 70vh;
     height: auto;
+    will-change: transform;
 }
 
 #settings-panel::-webkit-scrollbar {
@@ -1798,12 +1770,11 @@ video.ready {
     width: 100%;
     max-width: 400px;
     background: var(--menu-bg-strong);
-    -webkit-backdrop-filter: blur(24px) saturate(2);
-    backdrop-filter: blur(24px) saturate(2);
+    backdrop-filter: var(--menu-blur-strong);
+    -webkit-backdrop-filter: var(--menu-blur-strong);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
     color: var(--white-85);
-    font-family: var(--font);
     font-size: 15px;
     font-weight: 600;
     padding: 16px;
@@ -1822,6 +1793,11 @@ video.ready {
 }
 
 @media (min-width: 769px) {
+    #settings-overlay-backdrop {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
     #settings-modal-wrap {
         bottom: 70px;
         top: auto;
@@ -1835,16 +1811,14 @@ video.ready {
     }
 
     #settings-panel {
-        max-width: 320px;
-        width: 320px;
+        width: 350px;
         max-height: 40vh;
         border-radius: 16px;
     }
 
     #settings-close-btn {
         display: block;
-        max-width: 320px;
-        width: 320px;
+        width: 350px;
         padding: 13px;
         font-size: 14px;
         border-radius: 12px;
@@ -1867,6 +1841,7 @@ video.ready {
     cursor: pointer;
     transition: background 0.15s;
     border-radius: 8px;
+    color: var(--white-85);
 }
 
 .quality-row:hover {
@@ -1930,7 +1905,6 @@ video.ready {
     background: none;
     border: none;
     color: var(--white-75);
-    font-family: var(--font);
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
@@ -2054,8 +2028,193 @@ video.ready {
     color: var(--white-45);
 }
 
+.sub-presets-section {
+    margin-top: 20px;
+    padding: 0 20px;
+}
+
+.sub-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.sub-preset-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--white-85);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.sub-preset-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.sub-preset-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--white);
+}
+
+.sub-preset-preview {
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.default-preview {
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.clean-preview {
+    background: transparent;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.high-contrast-preview {
+    background: #000;
+    color: #fff;
+    font-weight: 700;
+    border: 1px solid #fff;
+}
+
+.cinema-preview {
+    background: rgba(0, 0, 0, 0.9);
+    color: #ffff00;
+    text-shadow: 0 0 4px rgba(255, 255, 0, 0.5);
+    font-family: Georgia, serif;
+}
+
+.sub-simple-controls {
+    margin-top: 20px;
+    padding: 0 20px;
+}
+
+.sub-simple-row {
+    margin-bottom: 16px;
+}
+
+.sub-simple-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sub-simple-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--white-85);
+}
+
+.sub-size-buttons,
+.sub-position-buttons,
+.sub-bg-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.sub-size-btn,
+.sub-pos-btn,
+.sub-bg-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 6px;
+    color: var(--white-75);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sub-size-btn:hover,
+.sub-pos-btn:hover,
+.sub-bg-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sub-size-btn.active,
+.sub-pos-btn.active,
+.sub-bg-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--white);
+}
+
+.sub-size-btn[data-size="small"] {
+    font-size: 11px;
+}
+
+.sub-size-btn[data-size="medium"] {
+    font-size: 13px;
+}
+
+.sub-size-btn[data-size="large"] {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.sub-advanced-toggle {
+    margin: 20px;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    padding-left: 5px;
+    border-radius: 8px;
+}
+
+.sub-advanced-toggle-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--white-75);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.sub-advanced-toggle-btn:hover {
+    color: var(--white);
+}
+
+.sub-advanced-toggle-btn i:last-child {
+    transition: transform 0.3s ease;
+}
+
+.sub-advanced-toggle-btn.expanded i:last-child {
+    transform: rotate(180deg);
+}
+
 .sub-custom-body {
     overflow-y: auto;
+    padding-bottom: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    margin: 8px;
     padding-bottom: 20px;
 }
 
@@ -2098,9 +2257,9 @@ video.ready {
 }
 
 .sub-custom-section-lbl {
-    font-size: 15px;
-    font-weight: 400;
+    font-size: 1rem;
     color: var(--white-85);
+    margin-bottom: 12px;
 }
 
 .sub-custom-divider {
@@ -2162,7 +2321,6 @@ video.ready {
     background: rgba(255, 255, 255, 0.07);
     border: none;
     color: var(--white-75);
-    font-family: var(--font);
     font-size: 13px;
     font-weight: 500;
     padding: 9px 14px;
@@ -2211,12 +2369,26 @@ video.ready {
     transform: scale(1.1);
 }
 
-.sub-swatch-active {
-    border-color: var(--white) !important;
+.sub-bg-swatch {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: transform 0.15s, border-color 0.15s;
+    flex-shrink: 0;
 }
 
-.sub-swatch-brush {
-    border-color: rgba(255, 255, 255, 0.15);
+.sub-bg-swatch:hover {
+    transform: scale(1.1);
+}
+
+.sub-bg-swatch-active {
+    border-color: var(--white) !important;
 }
 
 .sub-pos-btns {
@@ -2229,7 +2401,6 @@ video.ready {
     background: rgba(255, 255, 255, 0.08);
     border: none;
     color: var(--white-60);
-    font-family: var(--font);
     font-size: 14px;
     font-weight: 500;
     padding: 8px 18px;
@@ -2252,7 +2423,6 @@ video.ready {
     background: rgba(255, 255, 255, 0.08);
     border: none;
     color: var(--white-60);
-    font-family: var(--font);
     font-size: 14px;
     font-weight: 500;
     padding: 8px 18px;
@@ -2332,7 +2502,6 @@ video.ready {
     color: var(--white-60);
     font-size: 14px;
     font-weight: 500;
-    font-family: var(--font);
     background: none;
     border: none;
     text-align: left;
@@ -2344,10 +2513,6 @@ video.ready {
 
 #landscape-back-btn i {
     font-size: 13px;
-}
-
-.sub-reset-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
 }
 
 #settings-panel::-webkit-scrollbar {
@@ -2447,7 +2612,6 @@ video.ready {
 .settings-list {
     display: flex;
     flex-direction: column;
-    padding: 0 12px 12px;
     height: auto;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -2473,7 +2637,9 @@ video.ready {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 12px 14px;
+    padding: 12px 24px;
+    width: 95%;
+    margin: 0 auto;
     border-radius: 8px;
     cursor: pointer;
     color: var(--white-85);
@@ -2561,7 +2727,6 @@ video.ready {
     color: var(--white-92);
     font-size: 13px;
     font-weight: 500;
-    font-family: var(--font);
     padding: 8px 32px 8px 12px;
     border-radius: 6px;
     cursor: pointer;
@@ -2624,7 +2789,8 @@ video.ready {
     justify-content: space-between;
 }
 
-#btn-reset-video {
+#btn-reset-video,
+#sub-custom-reset-btn {
     justify-content: center;
     color: var(--white-92);
     background-color: var(--white-08);
@@ -2665,6 +2831,8 @@ video.ready {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
 }
 
 .download-item {
@@ -2716,7 +2884,6 @@ video.ready {
     background: var(--white-08);
     border: none;
     color: var(--white-85);
-    font-family: var(--font);
     font-size: 13px;
     font-weight: 600;
     padding: 8px 14px;
@@ -2769,7 +2936,6 @@ video.ready {
 #subtitle-text {
     display: inline-block;
     max-width: 90%;
-    font-family: var(--font);
     font-size: 18px;
     font-weight: 500;
     color: #fff;
@@ -2851,7 +3017,6 @@ video.ready {
     backdrop-filter: var(--menu-blur);
     border: none;
     color: var(--white-85);
-    font-family: var(--font);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -2901,7 +3066,6 @@ video.ready {
     background: var(--menu-bg-strong);
     border: none;
     color: var(--white-85);
-    font-family: var(--font);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.02em;

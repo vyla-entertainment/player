@@ -14,9 +14,11 @@ const PLAYER_DOMAINS = {
     '{v4}': 'cloudnestra.com',
 };
 
-async function fetchHtml(url) {
+async function fetchHtml(url, referer) {
     if (url.startsWith('//')) url = 'https:' + url;
-    const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(10000) });
+    const headers = { ...HEADERS };
+    if (referer) headers['Referer'] = referer;
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
     if (res.status !== 200) return null;
     return res.text();
 }
@@ -56,19 +58,20 @@ async function getStream(id, s, e) {
         ? `${BASE_URL}/embed/tv?tmdb=${id}&season=${s}&episode=${e}`
         : `${BASE_URL}/embed/movie?tmdb=${id}`;
 
-    const html1 = await fetchHtml(pageUrl);
+    const html1 = await fetchHtml(pageUrl, BASE_URL + '/');
     if (!html1) return null;
 
-    const secondUrl = extractSecondUrl(html1);
+    let secondUrl = extractSecondUrl(html1);
     if (!secondUrl) return null;
+    if (secondUrl.startsWith('//')) secondUrl = 'https:' + secondUrl;
 
-    const html2 = await fetchHtml(secondUrl);
+    const html2 = await fetchHtml(secondUrl, pageUrl);
     if (!html2) return null;
 
     const thirdUrl = extractThirdUrl(html2, secondUrl);
     if (!thirdUrl) return null;
 
-    const html3 = await fetchHtml(thirdUrl);
+    const html3 = await fetchHtml(thirdUrl, secondUrl);
     if (!html3) return null;
 
     const urls = extractM3u8Urls(html3);
@@ -83,4 +86,24 @@ const PROXY_HEADERS = {
     'User-Agent': HEADERS['User-Agent'],
 };
 
-module.exports = { getStream, HEADERS: PROXY_HEADERS };
+async function proxyStream(url, res, { fetchUpstream, rewriteM3u8 }) {
+    const upstream = await fetchUpstream(url, 0, PROXY_HEADERS);
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewriteM3u8(body, url, '&vs=1'));
+    }
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    upstream.pipe(res);
+}
+
+const VERIFY_HEADERS = { ...PROXY_HEADERS };
+
+module.exports = { getStream, proxyStream, VERIFY_HEADERS, HEADERS: PROXY_HEADERS };

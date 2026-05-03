@@ -109,10 +109,18 @@ async function proxyKey(keyUrl, res) {
     res.end(buf);
 }
 
+const VERIFY_HEADERS = null;
+
+async function proxyStream() {
+    throw new Error('icefy: proxyStream should never be called');
+}
+
 module.exports = {
     getStream,
+    proxyStream,
+    VERIFY_HEADERS,
     proxyKey,
-    ICEFY_HEADERS,
-    ICEFY_BASES,
+    KEY_HEADERS: ICEFY_HEADERS,
+    BASES: ICEFY_BASES,
     UA,
 };

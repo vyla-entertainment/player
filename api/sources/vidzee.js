@@ -113,4 +113,53 @@ async function getStream(id, s, e) {
     throw new Error('VidZee: no valid stream found');
 }
 
-module.exports = { getStream, hlsHeaders, PLAYER_URL };
+async function proxyStream(url, res, { fetchUpstream, rewriteM3u8 }) {
+    let upstream;
+    try {
+        upstream = await fetchUpstream(url, 0, hlsHeaders);
+    } catch (err) {
+        res.statusCode = 502;
+        return res.end(JSON.stringify({ error: 'fetchUpstream failed', detail: err.message, url }));
+    }
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+    if (upstream.statusCode >= 400) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8').slice(0, 500);
+        res.statusCode = 502;
+        return res.end(JSON.stringify({ error: 'upstream error', status: upstream.statusCode, body, url }));
+    }
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8(\?|$)/i.test(url);
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+        const base = url.split('?')[0];
+        const dir = base.slice(0, base.lastIndexOf('/') + 1);
+        const origin = new URL(url).origin;
+        const rewritten = body.split('\n').map(line => {
+            const t = line.trim();
+            if (!t) return line;
+            if (t.startsWith('#')) {
+                return t.replace(/URI="([^"]+)"/g, (_match, uri) => {
+                    const abs = uri.startsWith('http') ? uri : uri.startsWith('/') ? origin + uri : dir + uri;
+                    return `URI="/api?url=${encodeURIComponent(abs)}&vz=1"`;
+                });
+            }
+            const abs = t.startsWith('http') ? t : t.startsWith('/') ? origin + t : dir + t;
+            if (abs.includes('tiktokcdn.com') || abs.includes('p16-sg') || abs.includes('p19-sg')) return `/api?url=${encodeURIComponent(abs)}&tt=1`;
+            return `/api?url=${encodeURIComponent(abs)}&vz=1`;
+        }).join('\n');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewritten);
+    }
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    upstream.pipe(res);
+}
+
+const VERIFY_HEADERS = { ...hlsHeaders };
+
+module.exports = { getStream, proxyStream, VERIFY_HEADERS, hlsHeaders, PLAYER_URL };

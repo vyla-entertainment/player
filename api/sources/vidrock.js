@@ -116,4 +116,38 @@ async function getSubtitles(id, s, e) {
     return fetchSubtitles(id, type, s, e);
 }
 
-module.exports = { getStream, getSubtitles, HEADERS, BASE_URL };
+const PROXY_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6884.98 Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Origin': 'https://lok-lok.cc',
+    'Referer': 'https://lok-lok.cc/',
+    'Sec-Fetch-Dest': 'video',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'cross-site',
+    'sec-ch-ua': '"Chromium";v="134", "Google Chrome";v="134", "Not:A-Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+};
+
+async function proxyStream(url, res, { fetchUpstream, rewriteM3u8 }) {
+    const upstream = await fetchUpstream(url, 0, PROXY_HEADERS);
+    const ct = (upstream.headers['content-type'] || '').toLowerCase();
+    const isM3u8 = ct.includes('mpegurl') || ct.includes('m3u8') || /\.m3u8?(\?|$)/i.test(url);
+    if (isM3u8) {
+        const chunks = [];
+        for await (const c of upstream) chunks.push(c);
+        const body = Buffer.concat(chunks).toString('utf8');
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.end(rewriteM3u8(body, url, '&vr=1'));
+    }
+    res.setHeader('Content-Type', ct || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    upstream.pipe(res);
+}
+
+const VERIFY_HEADERS = { ...PROXY_HEADERS };
+
+module.exports = { getStream, getSubtitles, proxyStream, VERIFY_HEADERS, HEADERS, BASE_URL };

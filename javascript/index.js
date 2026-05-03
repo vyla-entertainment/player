@@ -3,13 +3,14 @@ var shouldHideLoader = false;
 var blocked = false;
 
 (function () {
-    var allowedOrigins = ['https://vyla.pages.dev', 'http://localhost', 'http://localhost:7860'];
+    var allowedOrigins = ['https://vyla.pages.dev', 'http://localhost', 'http://localhost:7860', 'http://169.254.162.163:7860'];
     var anc = document.referrer ? new URL(document.referrer).origin : '';
     var isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     var isInIframe = window.self !== window.top;
     var isAllowedEmbed = isInIframe && allowedOrigins.some(function (o) { return anc.startsWith(o); });
+    var isAllowedOrigin = allowedOrigins.some(function (o) { return location.origin === o; });
 
-    if (!isLocalhost && (!isAllowedEmbed)) {
+    if (!isLocalhost && (!isAllowedEmbed) && (!isAllowedOrigin)) {
         var loader = document.getElementById('loader');
         if (loader) {
             var p = new URLSearchParams(location.search);
@@ -30,12 +31,57 @@ var blocked = false;
     }
 })();
 
-function initLoaderVideo() {
-    var loaderVideo = document.getElementById('loader-bg-video');
-    if (loaderVideo) {
-        loaderVideo.src = 'https://videos.pexels.com/video-files/29848606/12817774_3840_2160_30fps.mp4';
-        loaderVideo.play().catch(function (e) {
-        });
+function initLoaderBackdrop() {
+    var loaderBg = document.getElementById('loader-bg');
+    if (!loaderBg) return;
+
+    var p = new URLSearchParams(location.search);
+    var id = p.get('id');
+
+    var isTv = !!p.get('s');
+    var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id : '/api?tmdb_movie=1&id=' + id;
+
+    fetch(tmdbUrl)
+        .then(function (response) {
+            if (!response.ok) throw new Error('TMDB fetch failed');
+            return response.json();
+        })
+        .then(function (data) {
+            if (data.success === false) {
+                return;
+            }
+
+            var backdropPath = data.backdrop_path;
+            if (backdropPath) {
+                var backdropUrl = 'https://image.tmdb.org/t/p/original' + backdropPath;
+                loaderBg.style.backgroundImage = 'url(' + backdropUrl + ')';
+            } else {
+                var posterPath = data.poster_path;
+                if (posterPath) {
+                    var posterUrl = 'https://image.tmdb.org/t/p/w1280' + posterPath;
+                    loaderBg.style.backgroundImage = 'url(' + posterUrl + ')';
+                }
+            }
+        })
+}
+
+function setTitleWithTmdbImage(titleText, meta) {
+
+    var titleElement = document.getElementById('title-text');
+
+    if (meta && meta.images && meta.images.logos && meta.images.logos.length > 0) {
+        var logo = meta.images.logos[0];
+        var logoUrl = 'https://image.tmdb.org/t/p/w300' + logo.file_path;
+
+        titleElement.innerHTML = '<img src="' + logoUrl + '" alt="' + titleText + '" style="max-height:24px;max-width:200px;object-fit:contain;">';
+    } else if (meta && meta.logo_object && meta.logo_object.file_path) {
+        var logoUrl = 'https://image.tmdb.org/t/p/w300' + meta.logo_object.file_path;
+
+        titleElement.innerHTML = '<img src="' + logoUrl + '" alt="' + titleText + '" style="max-height:24px;max-width:200px;object-fit:contain;">';
+    } else {
+        if (meta && meta.images) {
+        }
+        titleElement.textContent = titleText;
     }
 }
 
@@ -45,7 +91,7 @@ function isMobile() {
 
 document.addEventListener('DOMContentLoaded', function () {
     if (!blocked) {
-        initLoaderVideo();
+        initLoaderBackdrop();
     }
 
     if (isMobile()) {
@@ -122,13 +168,9 @@ if (!blocked) {
             var subtitle = document.getElementById('loader-sources-subtitle');
             if (!track) return;
 
-            var sourceTimeouts = {
-                vidlink: 12000, icefy: 8000, vidzee: 15000,
-                vidnest: 20000, vidsrc: 25000, vidrock: 20000, videasy: 20000
-            };
-
-            var fallbackSources = ['VidLink', 'Icefy', 'VidZee', 'VidNest', 'VidSrc', 'VidRock', 'Videasy'];
-            var fallbackTimeouts = [12000, 8000, 15000, 20000, 25000, 20000, 20000];
+            var sourceTimeouts = {};
+            var fallbackSources = [];
+            var fallbackTimeouts = [];
 
             var subtitleStates = {
                 fetching: 'Fetching sources\u2026',
@@ -174,11 +216,10 @@ if (!blocked) {
                     if (data.sources && data.sources.length) {
                         clearTimeout(stepTimer);
                         var names = data.sources.map(function (source) {
-                            var key = source.source || 'unknown';
-                            return key.charAt(0).toUpperCase() + key.slice(1);
+                            return source.label || source.source || 'unknown';
                         });
                         var timeouts = data.sources.map(function (source) {
-                            return sourceTimeouts[source.source] || 20000;
+                            return source.timeout || 20000;
                         });
                         buildCarousel(names, timeouts);
                         setSubtitle('testing');
@@ -326,10 +367,27 @@ if (!blocked) {
                     }
                     if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
                     document.title = title;
-                    document.getElementById('title-text').textContent = title;
+
+                    var isTv = !!s;
+                    var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
+                    fetch(tmdbUrl)
+                        .then(function (mr) {
+                            if (!mr.ok) {
+                                throw new Error('TMDB fetch failed: ' + mr.status);
+                            }
+                            return mr.json();
+                        })
+                        .then(function (meta) {
+                            setTitleWithTmdbImage(title, meta);
+                        })
+                        .catch(function (err) {
+                            document.getElementById('title-text').textContent = title;
+                        });
+
                     showNowPlayingToast(title);
                 } else if (result.type === 'm3u8') {
-                    var tmdbUrl = '/api?tmdb_movie=1&id=' + id;
+                    var isTv = !!s;
+                    var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
 
                     fetch(tmdbUrl)
                         .then(function (mr) {
@@ -345,7 +403,7 @@ if (!blocked) {
                             var title = (meta.title || meta.name || 'Unknown');
                             if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
                             document.title = title;
-                            document.getElementById('title-text').textContent = title;
+                            setTitleWithTmdbImage(title, meta);
                             showNowPlayingToast(title);
                             if ('mediaSession' in navigator) {
                                 var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
@@ -586,6 +644,8 @@ function play(raw, skipProxy, videoId) {
         size: savedSub.size || 'medium',
         bgColor: savedSub.bgColor || '#000000',
         bgOpacity: savedSub.bgOpacity !== undefined ? savedSub.bgOpacity : '0.75',
+        overallOpacity: savedSub.overallOpacity !== undefined ? savedSub.overallOpacity : '1',
+        textShadow: savedSub.textShadow || 'shadow',
         pos: savedSub.pos || 'mid',
         edge: savedSub.edge || 'shadow',
         weight: savedSub.weight || '500',
@@ -647,6 +707,8 @@ function play(raw, skipProxy, videoId) {
                 color: subState.color,
                 bgColor: subState.bgColor,
                 bgOpacity: subState.bgOpacity,
+                overallOpacity: subState.overallOpacity,
+                textShadow: subState.textShadow,
                 pos: subState.pos,
                 edge: subState.edge,
                 weight: subState.weight,
@@ -657,10 +719,23 @@ function play(raw, skipProxy, videoId) {
 
     function applySubStyles() {
         subtitleDisplay.style.bottom = subPosMap[subState.pos];
+        subtitleDisplay.style.opacity = subState.overallOpacity;
         subtitleText.style.fontFamily = subFontMap[subState.font];
         subtitleText.style.fontSize = subSizeMap[subState.size];
         subtitleText.style.color = subState.color;
-        subtitleText.style.textShadow = subEdgeMap[subState.edge];
+
+        var textShadow = '';
+        if (subState.textShadow === 'shadow') {
+            textShadow = subEdgeMap.shadow;
+        } else if (subState.textShadow === 'outline') {
+            textShadow = subEdgeMap.outline;
+        } else if (subState.textShadow === 'both') {
+            textShadow = subEdgeMap.shadow + ', ' + subEdgeMap.outline;
+        } else {
+            textShadow = subEdgeMap.none;
+        }
+        subtitleText.style.textShadow = textShadow;
+
         subtitleText.style.fontWeight = subWeightMap[subState.weight] || '500';
         subtitleText.style.letterSpacing = subSpacingMap[subState.spacing] || '0px';
 
@@ -1227,7 +1302,7 @@ function play(raw, skipProxy, videoId) {
 
     if (Hls.isSupported()) {
         var hlsConfig = {
-            startLevel: 0,
+            startLevel: -1,          // ← was 0, -1 = auto quality selection
             maxBufferLength: 30,
             maxMaxBufferLength: 60,
             maxBufferSize: 60 * 1000 * 1000,
@@ -1246,6 +1321,9 @@ function play(raw, skipProxy, videoId) {
             manifestLoadingTimeOut: 20000,
             levelLoadingTimeOut: 20000,
             testBandwidth: true,
+            xhrSetup: function (xhr, url) {
+                xhr.withCredentials = false;
+            },
         };
         if (isIcefy) {
             hlsConfig.pLoader = (function () {
@@ -1298,6 +1376,9 @@ function play(raw, skipProxy, videoId) {
         hls.on(Hls.Events.ERROR, function (event, data) {
             if (data.fatal) {
                 if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                    if (data.details === 'keyLoadError') {
+                        return;
+                    }
                     hls.startLoad();
                 } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                     hls.recoverMediaError();
@@ -1494,10 +1575,24 @@ function play(raw, skipProxy, videoId) {
                 }
 
                 buildSubtitleOpts(passed);
+
+                var mainToggle = document.getElementById('subtitle-toggle');
+                if (mainToggle) {
+                    if (subState.activeTrack >= 0) {
+                        mainToggle.classList.add('on');
+                    } else {
+                        mainToggle.classList.remove('on');
+                    }
+                }
             });
         })
         .catch(function () {
             document.getElementById('lbl-subtitle').textContent = 'Off';
+
+            var mainToggle = document.getElementById('subtitle-toggle');
+            if (mainToggle) {
+                mainToggle.classList.remove('on');
+            }
         });
 
     var langCodeMap = {
@@ -1553,6 +1648,12 @@ function play(raw, skipProxy, videoId) {
                 subState.cues = result.cues;
                 _lastCueText = null;
                 document.getElementById('lbl-subtitle').textContent = result.sub.label;
+
+                var mainToggle = document.getElementById('subtitle-toggle');
+                if (mainToggle) {
+                    mainToggle.classList.add('on');
+                }
+
                 haptic(6);
                 showUI(true);
             });
@@ -1648,10 +1749,28 @@ function play(raw, skipProxy, videoId) {
                 subState.activeTrack = -1;
                 subState.cues = [];
                 subtitleText.textContent = '';
+                _lastCueText = '';
                 subtitleToggleEl.classList.remove('on');
                 document.getElementById('lbl-subtitle').textContent = 'Off';
+
+                var offItem = document.querySelector('.sub-off-item');
+                if (offItem) {
+                    document.querySelectorAll('.sub-special-item, .sub-lang-item').forEach(function (x) {
+                        x.classList.remove('active-sub-item');
+                        var check = x.querySelector('.sub-active-check');
+                        if (check) check.style.display = 'none';
+                    });
+                    offItem.classList.add('active-sub-item');
+                    var check = offItem.querySelector('.sub-active-check');
+                    if (check) check.style.display = 'block';
+                }
             } else {
-                subtitleToggleEl.classList.add('on');
+                var firstSubItem = document.querySelector('.sub-lang-item:not(.disabled)');
+                if (firstSubItem) {
+                    firstSubItem.click();
+                } else {
+                    subtitleToggleEl.classList.remove('on');
+                }
             }
             haptic(6);
         });
@@ -1714,7 +1833,7 @@ function play(raw, skipProxy, videoId) {
                 });
         });
     }
-    
+
     var mainPlaybackBtn = document.getElementById('main-playback-btn');
     if (mainPlaybackBtn) {
         mainPlaybackBtn.addEventListener('click', function (e) {
@@ -1731,7 +1850,7 @@ function play(raw, skipProxy, videoId) {
             showSettingsView('video');
             haptic(6);
         });
-    } else { console.warn('[debug] main-video-btn not found'); }
+    }
 
     var videoInputs = ['brightness', 'contrast', 'saturate'];
     videoInputs.forEach(function (key) {
@@ -2417,7 +2536,7 @@ function play(raw, skipProxy, videoId) {
 
                         var thumbHtml = '<div class="ep-thumb">';
                         if (ep.still_path) {
-                            thumbHtml += '<img src="https://image.tmdb.org/t/p/w185' + ep.still_path + '" loading="lazy" alt="">';
+                            thumbHtml += '<img src="https://image.tmdb.org/t/p/w185' + ep.still_path + '" alt="">';
                         } else {
                             thumbHtml += '<div class="ep-thumb-placeholder"><i class="fa-solid fa-film"></i></div>';
                         }
@@ -2758,32 +2877,218 @@ function play(raw, skipProxy, videoId) {
         var subViewTitle = document.getElementById('sub-view-title');
         var subCustomizeBtn = document.getElementById('sub-customize-open-btn');
         var subMainBackBtn = document.getElementById('sub-main-back-btn');
+        var advancedBtn = document.getElementById('sub-advanced-btn');
+        var advancedContent = document.getElementById('sub-advanced-content');
+
+        var subPresets = {
+            default: {
+                font: 'sans',
+                size: 'medium',
+                color: '#ffffff',
+                bgColor: '#000000',
+                bgOpacity: 0.75,
+                textShadow: 'shadow',
+                pos: 'mid',
+                weight: '500'
+            },
+            clean: {
+                font: 'sans',
+                size: 'medium',
+                color: '#ffffff',
+                bgColor: 'transparent',
+                bgOpacity: 0,
+                textShadow: 'shadow',
+                pos: 'mid',
+                weight: '500'
+            },
+            'high-contrast': {
+                font: 'sans',
+                size: 'medium',
+                color: '#ffffff',
+                bgColor: '#000000',
+                bgOpacity: 1,
+                textShadow: 'none',
+                pos: 'mid',
+                weight: '700'
+            },
+            cinema: {
+                font: 'serif',
+                size: 'medium',
+                color: '#ffff00',
+                bgColor: '#000000',
+                bgOpacity: 0.9,
+                textShadow: 'both',
+                pos: 'mid',
+                weight: '500'
+            }
+        };
+
+        function applySubPreset(presetName) {
+            var preset = subPresets[presetName];
+            if (!preset) return;
+
+            Object.keys(preset).forEach(function (key) {
+                subState[key] = preset[key];
+            });
+
+            applySubStyles();
+            saveSubSettings();
+            updateSimpleControls();
+            updateAdvancedControls();
+        }
+
+        function updateSimpleControls() {
+            document.querySelectorAll('.sub-size-btn').forEach(function (btn) {
+                btn.classList.toggle('active', btn.dataset.size === subState.size);
+            });
+
+            document.querySelectorAll('.sub-pos-btn').forEach(function (btn) {
+                btn.classList.toggle('active', btn.dataset.pos === subState.pos);
+            });
+
+            var bgType = 'none';
+            if (subState.bgOpacity > 0.8) bgType = 'dark';
+            else if (subState.bgOpacity > 0.3) bgType = 'light';
+
+            document.querySelectorAll('.sub-bg-btn').forEach(function (btn) {
+                btn.classList.toggle('active', btn.dataset.bg === bgType);
+            });
+
+            var currentPreset = 'default';
+            Object.keys(subPresets).forEach(function (presetName) {
+                var preset = subPresets[presetName];
+                var matches = true;
+                Object.keys(preset).forEach(function (key) {
+                    if (subState[key] !== preset[key]) matches = false;
+                });
+                if (matches) currentPreset = presetName;
+            });
+
+            document.querySelectorAll('.sub-preset-btn').forEach(function (btn) {
+                btn.classList.toggle('active', btn.dataset.preset === currentPreset);
+            });
+        }
+
+        function updateAdvancedControls() {
+            var subBgOpacityRange = document.getElementById('sub-bg-opacity-range');
+            var subBgOpacityVal = document.getElementById('sub-bg-opacity-val');
+            if (subBgOpacityRange && subBgOpacityVal) {
+                subBgOpacityRange.value = parseFloat(subState.bgOpacity) * 100;
+                subBgOpacityVal.textContent = Math.round(parseFloat(subState.bgOpacity) * 100) + '%';
+            }
+
+            var subTextSizeRange = document.getElementById('sub-text-size-range');
+            var subTextSizeVal = document.getElementById('sub-text-size-val');
+            if (subTextSizeRange && subTextSizeVal) {
+                subTextSizeRange.value = 100;
+                subTextSizeVal.textContent = '100%';
+            }
+
+            var subTextStyleSelect = document.getElementById('sub-text-style-select');
+            if (subTextStyleSelect) {
+                subTextStyleSelect.value = subState.font;
+            }
+
+            var subBoldToggle = document.getElementById('sub-bold-toggle');
+            if (subBoldToggle) {
+                subBoldToggle.classList.toggle('on', subState.weight === '700');
+            }
+        }
+
+        document.querySelectorAll('.sub-preset-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var preset = this.dataset.preset;
+                applySubPreset(preset);
+                haptic(6);
+            });
+        });
+
+        document.querySelectorAll('.sub-size-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                subState.size = this.dataset.size;
+                applySubStyles();
+                saveSubSettings();
+                updateSimpleControls();
+                haptic(6);
+            });
+        });
+
+        document.querySelectorAll('.sub-pos-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                subState.pos = this.dataset.pos;
+                applySubStyles();
+                saveSubSettings();
+                updateSimpleControls();
+                haptic(6);
+            });
+        });
+
+        document.querySelectorAll('.sub-bg-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var bgType = this.dataset.bg;
+                if (bgType === 'none') {
+                    subState.bgOpacity = 0;
+                } else if (bgType === 'light') {
+                    subState.bgOpacity = 0.5;
+                } else if (bgType === 'dark') {
+                    subState.bgOpacity = 0.9;
+                }
+                applySubStyles();
+                saveSubSettings();
+                updateSimpleControls();
+                updateAdvancedControls();
+                haptic(6);
+            });
+        });
+
+        if (advancedBtn) {
+            advancedBtn.addEventListener('click', function () {
+                var isExpanded = this.classList.contains('expanded');
+
+                if (isExpanded) {
+                    this.classList.remove('expanded');
+                    if (advancedContent) advancedContent.style.display = 'none';
+                } else {
+                    this.classList.add('expanded');
+                    if (advancedContent) {
+                        advancedContent.style.display = 'block';
+                        updateAdvancedControls();
+                    }
+                }
+                haptic(6);
+            });
+        }
 
         if (openBtn) openBtn.addEventListener('click', function () {
             langView.style.display = 'none';
             customView.style.display = 'block';
-            if (subViewTitle) subViewTitle.textContent = 'Customize';
+            if (subViewTitle) subViewTitle.textContent = 'Customize Subtitles';
             if (subCustomizeBtn) subCustomizeBtn.style.display = 'none';
-            if (subMainBackBtn) subMainBackBtn._inCustomize = true;
-        });
-
-        if (subMainBackBtn) subMainBackBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (subMainBackBtn._inCustomize) {
-                subMainBackBtn._inCustomize = false;
-                customView.style.display = 'none';
-                langView.style.display = 'block';
-                if (subViewTitle) subViewTitle.textContent = 'Subtitles';
-                if (subCustomizeBtn) subCustomizeBtn.style.display = '';
-            } else {
-                showSettingsView('main');
-            }
+            updateSimpleControls();
+            updateAdvancedControls();
         });
 
         if (backBtn) backBtn.addEventListener('click', function () {
             customView.style.display = 'none';
             langView.style.display = 'block';
-            if (openBtn) openBtn.style.display = '';
+            if (subViewTitle) subViewTitle.textContent = 'Subtitles';
+            if (subCustomizeBtn) subCustomizeBtn.style.display = '';
+            if (advancedBtn) advancedBtn.classList.remove('expanded');
+            if (advancedContent) advancedContent.style.display = 'none';
+        });
+
+        if (subMainBackBtn) subMainBackBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (customView.style.display === 'block') {
+                customView.style.display = 'none';
+                langView.style.display = 'block';
+                if (subViewTitle) subViewTitle.textContent = 'Subtitles';
+                if (subCustomizeBtn) subCustomizeBtn.style.display = '';
+                if (advancedBtn) advancedBtn.classList.remove('expanded');
+                if (advancedContent) advancedContent.style.display = 'none';
+            } else {
+                showSettingsView('main');
+            }
         });
 
         document.querySelectorAll('.sub-special-item').forEach(function (el) {
@@ -2804,6 +3109,12 @@ function play(raw, skipProxy, videoId) {
                     subtitleText.textContent = '';
                     _lastCueText = '';
                     document.getElementById('lbl-subtitle').textContent = 'Off';
+
+                    var mainToggle = document.getElementById('subtitle-toggle');
+                    if (mainToggle) {
+                        mainToggle.classList.remove('on');
+                    }
+
                     haptic(6);
                 }
             });
@@ -2973,23 +3284,111 @@ function play(raw, skipProxy, videoId) {
             });
         }
 
-        var subPosBtns = document.querySelectorAll('.sub-pos-btn');
-        subPosBtns.forEach(function (b) {
-            b.addEventListener('click', function () {
-                subPosBtns.forEach(function (x) { x.classList.remove('sub-pos-active'); });
-                b.classList.add('sub-pos-active');
-                var pos = b.dataset.pos;
-                if (pos === 'default') subState.pos = 'mid';
-                else if (pos === 'high') subState.pos = 'high';
+        var bgSwatches = document.querySelectorAll('.sub-bg-swatch');
+        var customBgColorPicker = document.getElementById('sub-custom-bg-color-picker');
+        bgSwatches.forEach(function (sw) {
+            sw.addEventListener('click', function () {
+                if (sw.dataset.bgColor === 'custom') {
+                    customBgColorPicker.click();
+                    return;
+                }
+                bgSwatches.forEach(function (s) {
+                    s.classList.remove('sub-bg-swatch-active');
+                    s.innerHTML = s.dataset.bgColor === 'custom' ? '<i class="fa-solid fa-paint-brush" style="color:var(--white-60);font-size:12px;"></i>' : '';
+                });
+                sw.classList.add('sub-bg-swatch-active');
+                sw.innerHTML = '<i class="fa-solid fa-check" style="color:#000;"></i>';
+                subState.bgColor = sw.dataset.bgColor;
                 applySubStyles();
                 saveSubSettings();
             });
         });
+        if (customBgColorPicker) {
+            customBgColorPicker.addEventListener('change', function () {
+                bgSwatches.forEach(function (s) {
+                    s.classList.remove('sub-bg-swatch-active');
+                    s.innerHTML = s.dataset.bgColor === 'custom' ? '<i class="fa-solid fa-paint-brush" style="color:var(--white-60);font-size:12px;"></i>' : '';
+                });
+                var csw = document.querySelector('.sub-bg-swatch-brush');
+                if (csw) {
+                    csw.style.background = customBgColorPicker.value;
+                    csw.classList.add('sub-bg-swatch-active');
+                }
+                subState.bgColor = customBgColorPicker.value;
+                applySubStyles();
+                saveSubSettings();
+            });
+        }
+
+        bgSwatches.forEach(function (s) {
+            s.classList.remove('sub-bg-swatch-active');
+            s.innerHTML = s.dataset.bgColor === 'custom' ? '<i class="fa-solid fa-paint-brush" style="color:var(--white-60);font-size:12px;"></i>' : '';
+        });
+        if (subState.bgColor === 'transparent') {
+            var transparentSwatch = document.querySelector('.sub-bg-swatch[data-bg-color="transparent"]');
+            if (transparentSwatch) {
+                transparentSwatch.classList.add('sub-bg-swatch-active');
+                transparentSwatch.innerHTML = '<i class="fa-solid fa-check" style="color:#000;"></i>';
+            }
+        } else {
+            var currentBgSwatch = document.querySelector('.sub-bg-swatch[data-bg-color="' + subState.bgColor + '"]');
+            if (currentBgSwatch) {
+                currentBgSwatch.classList.add('sub-bg-swatch-active');
+                currentBgSwatch.innerHTML = '<i class="fa-solid fa-check" style="color:#000;"></i>';
+            } else {
+                var customBgSwatch = document.querySelector('.sub-bg-swatch-brush');
+                if (customBgSwatch) {
+                    customBgSwatch.style.background = subState.bgColor;
+                    customBgSwatch.classList.add('sub-bg-swatch-active');
+                }
+                if (customBgColorPicker) customBgColorPicker.value = subState.bgColor;
+            }
+        }
+
+        var subPosSelect = document.getElementById('sub-pos-select');
+        if (subPosSelect) {
+            subPosSelect.value = subState.pos;
+            subPosSelect.addEventListener('change', function () {
+                subState.pos = this.value;
+                applySubStyles();
+                saveSubSettings();
+                haptic(6);
+            });
+        }
+
+        var subOverallOpacityRange = document.getElementById('sub-overall-opacity-range');
+        var subOverallOpacityVal = document.getElementById('sub-overall-opacity-val');
+        if (subOverallOpacityRange) {
+            updateSliderBg(subOverallOpacityRange);
+            subOverallOpacityRange.value = parseFloat(subState.overallOpacity) * 100;
+            subOverallOpacityVal.textContent = Math.round(parseFloat(subState.overallOpacity) * 100) + '%';
+            subOverallOpacityRange.addEventListener('input', function () {
+                subState.overallOpacity = (this.value / 100).toFixed(2);
+                subOverallOpacityVal.textContent = this.value + '%';
+                updateSliderBg(this);
+                applySubStyles();
+                saveSubSettings();
+            });
+        }
+
+        var subTextShadowSelect = document.getElementById('sub-text-shadow-select');
+        if (subTextShadowSelect) {
+            subTextShadowSelect.value = subState.textShadow;
+            subTextShadowSelect.addEventListener('change', function () {
+                subState.textShadow = this.value;
+                applySubStyles();
+                saveSubSettings();
+                haptic(6);
+            });
+        }
 
         var rb = document.getElementById('sub-custom-reset-btn');
         if (rb) rb.addEventListener('click', function () {
             subState.bgOpacity = '0.75';
             subState.color = '#ffffff';
+            subState.bgColor = '#000000';
+            subState.overallOpacity = '1';
+            subState.textShadow = 'shadow';
             subState.font = 'sans';
             subState.size = 'medium';
             subState.pos = 'mid';
@@ -2999,25 +3398,14 @@ function play(raw, skipProxy, videoId) {
             if (subBlurIntensityRange) { subBlurIntensityRange.value = 50; subBlurIntensityVal.textContent = '50%'; updateSliderBg(subBlurIntensityRange); }
             if (subTextSizeRange) { subTextSizeRange.value = 100; subTextSizeVal.textContent = '100%'; updateSliderBg(subTextSizeRange); }
             if (dr && dv) { dr.value = 0; subDelaySeconds = 0; dv.textContent = '0.0s'; updateSliderBg(dr); }
-            if (subTextStyleSelect) subTextStyleSelect.value = 'default';
+            if (subTextStyleSelect) subTextStyleSelect.value = 'sans';
+            if (subPosSelect) subPosSelect.value = 'mid';
+            if (subTextShadowSelect) subTextShadowSelect.value = 'shadow';
             if (subBoldToggle) subBoldToggle.classList.remove('on');
             if (subFixCapsToggle) subFixCapsToggle.classList.remove('on');
             if (subBgBlurToggle) subBgBlurToggle.classList.add('on');
             if (nativeSubToggle) nativeSubToggle.classList.remove('on');
-
-            colorSwatches.forEach(function (s) {
-                s.classList.remove('sub-swatch-active');
-                s.innerHTML = s.dataset.color === 'custom' ? '<i class="fa-solid fa-paint-brush" style="color:var(--white-60);font-size:12px;"></i>' : '';
-            });
-            var fw = document.querySelector('.sub-swatch[data-color="#ffffff"]');
-            if (fw) { fw.classList.add('sub-swatch-active'); fw.innerHTML = '<i class="fa-solid fa-check" style="color:#000;"></i>'; }
-
-            subPosBtns.forEach(function (b) { b.classList.remove('sub-pos-active'); });
-            var dp = document.querySelector('.sub-pos-btn[data-pos="default"]');
-            if (dp) dp.classList.add('sub-pos-active');
-
-            subtitleText.style.backdropFilter = '';
-            subtitleText.style.webkitBackdropFilter = '';
+            if (subOverallOpacityRange) { subOverallOpacityRange.value = 100; subOverallOpacityVal.textContent = '100%'; updateSliderBg(subOverallOpacityRange); }
             subtitleText.style.textTransform = '';
             applySubStyles();
             saveSubSettings();
