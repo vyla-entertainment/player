@@ -270,38 +270,6 @@ if (!blocked) {
             function scheduleNext(idx) {
                 if (destroyed) return;
                 setItemStatus(idx, 'Connecting\u2026');
-                var delay = TIMEOUTS[idx] !== undefined ? Math.min(TIMEOUTS[idx], 3500) : 2000;
-                stepTimer = setTimeout(function () {
-                    if (destroyed) return;
-                    setItemStatus(activeIndex, 'No response');
-                    if (activeIndex < SOURCES.length - 1) {
-                        activeIndex++;
-                        updateClasses();
-                        setSubtitle('retrying');
-                        setTimeout(function () {
-                            if (!destroyed) setSubtitle('testing');
-                        }, 900);
-                        scheduleNext(activeIndex);
-                    } else {
-                        setTimeout(function () {
-                            if (!destroyed && !shouldHideLoader) {
-                                var carousel = document.getElementById('loader-sources-carousel');
-                                if (carousel) carousel.style.display = 'none';
-                                var loaderMsg = document.getElementById('loader-msg');
-                                if (loaderMsg) loaderMsg.style.display = 'none';
-                                var errText = document.querySelector('.err-text');
-                                if (errText) errText.innerHTML = 'No Sources Found';
-                                var errSub = document.querySelector('.err-sub');
-                                if (!errSub) {
-                                    errText && errText.insertAdjacentHTML('afterend', '<div class="err-sub">No working sources were found. All sources failed to respond.</div>');
-                                } else if (errSub) {
-                                    errSub.textContent = 'No working sources were found. All sources failed to respond.';
-                                }
-                                document.getElementById('error-screen').classList.add('show');
-                            }
-                        }, 1500);
-                    }
-                }, delay);
             }
 
             var _origHide = window.hideLoader;
@@ -1302,7 +1270,7 @@ function play(raw, skipProxy, videoId) {
 
     if (Hls.isSupported()) {
         var hlsConfig = {
-            startLevel: -1,          // ← was 0, -1 = auto quality selection
+            startLevel: -1,
             maxBufferLength: 30,
             maxMaxBufferLength: 60,
             maxBufferSize: 60 * 1000 * 1000,
@@ -1546,7 +1514,7 @@ function play(raw, skipProxy, videoId) {
                 document.getElementById('lbl-subtitle').textContent = 'Off';
                 subLangList.innerHTML =
                     '<div class="sub-lang-empty" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;text-align:center;">' +
-                    'style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
+                    '<i style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
                 return;
             }
 
@@ -1570,7 +1538,7 @@ function play(raw, skipProxy, videoId) {
                 if (!passed.length) {
                     subLangList.innerHTML =
                         '<div class="sub-lang-empty" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;text-align:center;">' +
-                        'None available</div>';
+                        '<i style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
                     return;
                 }
 

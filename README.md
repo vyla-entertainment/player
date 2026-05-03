@@ -1,74 +1,40 @@
----
-title: Vyla Media Interface
-emoji: 🎥
-colorFrom: gray
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: false
-short_description: Educational Node.js and WASM implementation.
----
+# Vyla Media Player
 
-# Vyla Media Interface
+A clean, modern video player that works right in your browser. Watch movies and TV shows with a beautiful interface that adapts to any device.
 
-An educational video streaming player that demonstrates WebAssembly and Node.js integration.
+## What It Does
 
-## Overview
+- **Plays videos smoothly** - Works with all major video formats
+- **Mobile friendly** - Touch controls and gestures for phones and tablets
+- **Smart subtitles** - Multiple subtitle support with customizable styling
+- **Quality control** - Adjust video quality and playback speed
+- **Beautiful design** - Modern glass-morphism interface that looks great
+- **Auto fallback** - If one source doesn't work, it tries the next automatically
 
-This project explores WebAssembly (WASM) and Node.js integration for handling secure metadata requests and API handshakes in a containerized environment.
+## How to Use
 
-## Features
-
-- HTML5 video player with HLS streaming support
-- Multi-source streaming with fallback
-- WASM-based cryptographic operations
-- Mobile-optimized controls
-- Customizable subtitles
-- Playback speed and quality controls
-
-## Tech Stack
-
-- **Backend**: Node.js, Express.js, libsodium-wrappers
-- **Frontend**: Vanilla JavaScript, HLS.js
-- **WASM**: Go-compiled cryptographic module
-- **Styling**: CSS3 with glassmorphism effects
-- **APIs**: TMDB for metadata, vixsrc/VidZee for streaming
-
-## Architecture
-
+### Watching a Movie
+Just add `?id=` followed by the movie ID to the URL:
 ```
-server.js - Main Express server
-api/ - Core API logic and WASM integration
-javascript/ - Frontend player logic  
-styling/ - UI styles
-index.html - Main interface
+https://your-site.com/?id=550
 ```
 
-## API Endpoints
-
-- `GET /api?id={movieId}` - Stream movie
-- `GET /api?id={seriesId}&s={season}&e={episode}` - Stream TV episode
-- `GET /api?tmdb_movie={id}` - Movie metadata
-- `GET /api?url={encodedUrl}` - Proxy streaming content
-
-## Deployment
-
-```bash
-docker build -t vyla-player .
-docker run -p 7860:7860 vyla-player
+### Watching a TV Show
+Add season and episode numbers:
+```
+https://your-site.com/?id=1396&s=1&e=1
 ```
 
-Environment variables:
-- `TMDB_API_KEY` - Required for metadata
-- `PORT` - Server port (default: 7860)
+## Player Controls
 
-## Development
+- **Space/Click** - Play/Pause
+- **F** - Fullscreen
+- **Arrow Keys** - Skip forward/backward
+- **Touch Gestures** - Swipe left/right to skip on mobile
+- **Settings Menu** - Adjust quality, speed, subtitles
 
-```bash
-npm install
-npm start
-```
+## Notes
 
-## License
-
-Educational and research purposes only. Users must comply with third-party API terms of service.
+- Built for educational and research purposes
+- Please respect content creator rights and API terms
+- Works best with modern browsers (Chrome, Firefox, Safari, Edge)
