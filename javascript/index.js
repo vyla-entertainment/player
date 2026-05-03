@@ -532,8 +532,7 @@ function fetchSubWithFallback(sub) {
 }
 
 function play(raw, skipProxy, videoId) {
-    var isIcefy = raw.includes('icefy.top');
-    var src = (skipProxy || raw.startsWith('/api') || isIcefy) ? raw : '/api?url=' + encodeURIComponent(raw);
+    var src = (skipProxy || raw.startsWith('/api')) ? raw : '/api?url=' + encodeURIComponent(raw);
     var v = document.getElementById('v');
     var controlsWrapper = document.getElementById('player-controls-wrapper');
     var titleBar = document.getElementById('title-bar');
@@ -1089,7 +1088,7 @@ function play(raw, skipProxy, videoId) {
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (!d.url) { scheduleRetry(); return; }
-                    var newSrc = d.url.includes('icefy.top') ? d.url : '/api?url=' + encodeURIComponent(d.url); if (Hls.isSupported()) {
+                    var newSrc = d.url; if (Hls.isSupported()) {
                         hls.stopLoad();
                         hls.detachMedia();
                         hls.loadSource(newSrc);
@@ -1293,26 +1292,6 @@ function play(raw, skipProxy, videoId) {
                 xhr.withCredentials = false;
             },
         };
-        if (isIcefy) {
-            hlsConfig.pLoader = (function () {
-                function PLoader(config) { }
-                PLoader.prototype.load = function (context, cfg, callbacks) {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('GET', '/api?icefy_key=' + encodeURIComponent(context.url), true);
-                    xhr.responseType = 'arraybuffer';
-                    xhr.onload = function () {
-                        callbacks.onSuccess({ data: xhr.response, url: context.url }, { trequest: performance.now(), tfirst: performance.now(), tload: performance.now(), total: xhr.response.byteLength }, context);
-                    };
-                    xhr.onerror = function () {
-                        callbacks.onError({ code: xhr.status, text: xhr.statusText }, context, null);
-                    };
-                    xhr.send();
-                };
-                PLoader.prototype.abort = function () { };
-                PLoader.prototype.destroy = function () { };
-                return PLoader;
-            })();
-        }
         var hls = new Hls(hlsConfig);
         hls.loadSource(src);
         hls.attachMedia(v);
@@ -1379,10 +1358,10 @@ function play(raw, skipProxy, videoId) {
     }
 
     var PROXY = 'https://vyla-api.pages.dev/api/proxy?url=';
-    var vylaBase = 'https://vyla-api.pages.dev/api';
+    var vylaBase = 'https://vyla-api.pages.dev';
     var vylaEndpoint = s
-        ? (vylaBase + '/tv?id=' + id + '&season=' + s + '&episode=' + (e || '1'))
-        : (vylaBase + '/movie?id=' + id);
+        ? (vylaBase + '/api/subtitles/tv/' + id + '/' + s + '/' + (e || '1'))
+        : (vylaBase + '/api/subtitles/movie/' + id);
 
     var subLangList = document.getElementById('subtitle-opts');
 
@@ -1481,7 +1460,7 @@ function play(raw, skipProxy, videoId) {
     }
 
     function fetchSub(url) {
-        return fetch(PROXY + encodeURIComponent(url))
+        return fetch(url)
             .then(function (r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.text();
@@ -1494,6 +1473,26 @@ function play(raw, skipProxy, videoId) {
                 var cues = parseCues(t);
                 if (!cues.length) throw new Error('no cues');
                 return cues;
+            })
+            .catch(function (err) {
+                var proxyUrl = PROXY + encodeURIComponent(url);
+                return fetch(proxyUrl)
+                    .then(function (r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.text();
+                    })
+                    .then(function (text) {
+                        var t = text.trim();
+                        if (t.length < 10) throw new Error('empty');
+                        if (t.startsWith('#EXTM3U')) throw new Error('HLS');
+                        if (t.startsWith('{') || t.startsWith('[')) throw new Error('JSON');
+                        var cues = parseCues(t);
+                        if (!cues.length) throw new Error('no cues');
+                        return cues;
+                    })
+                    .catch(function (proxyErr) {
+                        throw proxyErr;
+                    });
             });
     }
 
@@ -1506,8 +1505,9 @@ function play(raw, skipProxy, videoId) {
     fetch(vylaEndpoint)
         .then(function (r) { return r.json(); })
         .then(function (d) {
-            var subs = (d.subtitles || []).filter(function (sub) {
-                return sub && sub.url && sub.label;
+            var subs = Array.isArray(d) ? d : (d.subtitles || []);
+            subs = subs.filter(function (sub) {
+                return sub && (sub.file || sub.url) && sub.label;
             });
 
             if (!subs.length) {
@@ -1518,41 +1518,20 @@ function play(raw, skipProxy, videoId) {
                 return;
             }
 
-            var tests = subs.map(function (sub) {
-                return fetchSub(sub.url)
-                    .then(function (cues) { return { sub: sub, cues: cues }; })
-                    .catch(function () { return null; });
-            });
+            window.availableSubtitles = subs;
 
-            Promise.all(tests).then(function (results) {
-                var seen = {};
-                var passed = results.filter(Boolean).filter(function (r) {
-                    var fp = fingerprint(r.cues);
-                    if (seen[fp]) return false;
-                    seen[fp] = true;
-                    return true;
-                });
+            buildSubtitleList(subs);
 
-                document.getElementById('lbl-subtitle').textContent = 'Off';
+            document.getElementById('lbl-subtitle').textContent = 'Off';
 
-                if (!passed.length) {
-                    subLangList.innerHTML =
-                        '<div class="sub-lang-empty" style="color:var(--white-45);cursor:default;font-size:13px;padding:12px 14px;text-align:center;">' +
-                        '<i style="margin-bottom:8px;display:block;font-size:16px;"></i> None available</div>';
-                    return;
+            var mainToggle = document.getElementById('subtitle-toggle');
+            if (mainToggle) {
+                if (subState.activeTrack >= 0) {
+                    mainToggle.classList.add('on');
+                } else {
+                    mainToggle.classList.remove('on');
                 }
-
-                buildSubtitleOpts(passed);
-
-                var mainToggle = document.getElementById('subtitle-toggle');
-                if (mainToggle) {
-                    if (subState.activeTrack >= 0) {
-                        mainToggle.classList.add('on');
-                    } else {
-                        mainToggle.classList.remove('on');
-                    }
-                }
-            });
+            }
         })
         .catch(function () {
             document.getElementById('lbl-subtitle').textContent = 'Off';
@@ -1585,25 +1564,38 @@ function play(raw, skipProxy, videoId) {
         return langCodeMap[key] || null;
     }
 
-    function buildSubtitleOpts(results) {
+    function buildSubtitleList(subs) {
         subLangList.innerHTML = '';
 
-        results.forEach(function (result, i) {
+        subs.forEach(function (sub, i) {
             var btn = document.createElement('div');
             btn.className = 'sub-lang-item';
-            var code = getLangFlag(result.sub.label);
+            var code = getLangFlag(sub.label);
             var flagHtml = code
                 ? '<img src="https://flagcdn.com/20x15/' + code + '.png" width="20" height="15" style="border-radius:2px;flex-shrink:0;object-fit:cover;" alt="">'
                 : '<span style="width:20px;height:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-globe" style="font-size:13px;color:var(--white-45);"></i></span>';
             btn.innerHTML =
                 flagHtml +
-                '<span class="sub-lang-name">' + result.sub.label + '</span>' +
+                '<span class="sub-lang-name">' + sub.label + '</span>' +
                 '<i class="fa-solid fa-circle-check sub-active-check" style="display:none;"></i>';
             btn.addEventListener('click', function (ev) {
                 ev.stopPropagation();
 
+                btn.classList.add('loading');
+                var check = btn.querySelector('.sub-active-check');
+                if (check) check.style.display = 'none';
+
+                loadSubtitle(sub, i, btn);
+            });
+            subLangList.appendChild(btn);
+        });
+    }
+
+    function loadSubtitle(sub, index, btn) {
+        fetchSub(sub.file || sub.url)
+            .then(function (cues) {
                 document.querySelectorAll('.sub-lang-item, .sub-off-item').forEach(function (el) {
-                    el.classList.remove('active-sub-item');
+                    el.classList.remove('active-sub-item', 'loading');
                     var check = el.querySelector('.sub-active-check');
                     if (check) check.style.display = 'none';
                 });
@@ -1612,10 +1604,10 @@ function play(raw, skipProxy, videoId) {
                 var check = btn.querySelector('.sub-active-check');
                 if (check) check.style.display = 'block';
 
-                subState.activeTrack = i;
-                subState.cues = result.cues;
+                subState.activeTrack = index;
+                subState.cues = cues;
                 _lastCueText = null;
-                document.getElementById('lbl-subtitle').textContent = result.sub.label;
+                document.getElementById('lbl-subtitle').textContent = sub.label;
 
                 var mainToggle = document.getElementById('subtitle-toggle');
                 if (mainToggle) {
@@ -1624,15 +1616,11 @@ function play(raw, skipProxy, videoId) {
 
                 haptic(6);
                 showUI(true);
+            })
+            .catch(function () {
+                btn.classList.remove('loading');
             });
-            subLangList.appendChild(btn);
-        });
     }
-
-    document.getElementById('settings-panel').addEventListener('click', function (e) { e.stopPropagation(); });
-    ['mousedown', 'touchstart', 'pointerdown'].forEach(function (ev) {
-        document.getElementById('settings-panel').addEventListener(ev, function (e) { e.stopPropagation(); });
-    });
 
     function openSettings() {
         settingsOpen = true;
@@ -1884,7 +1872,6 @@ function play(raw, skipProxy, videoId) {
     });
 
     function switchSource(url) {
-        var newSrc = (url.startsWith('/api') || url.includes('icefy.top')) ? url : '/api?url=' + encodeURIComponent(url);
         var wasPlaying = !v.paused;
         var savedTime = v.currentTime;
 
@@ -1900,7 +1887,7 @@ function play(raw, skipProxy, videoId) {
         if (Hls.isSupported() && typeof hls !== 'undefined') {
             hls.destroy();
             hls = new Hls();
-            hls.loadSource(newSrc);
+            hls.loadSource(url);
             hls.attachMedia(v);
             v.addEventListener('canplay', function onSwitch() {
                 v.removeEventListener('canplay', onSwitch);
