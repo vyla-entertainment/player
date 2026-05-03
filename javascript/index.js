@@ -320,7 +320,7 @@ if (!blocked) {
                 shouldHideLoader = true;
                 hideLoader();
                 if (result.type === 'json') {
-                    play(result.data.url, false, id);
+                    play(result.data.url, true, id);
                     var title = 'Unknown';
                     if (result.data.meta) {
                         var m = result.data.meta;

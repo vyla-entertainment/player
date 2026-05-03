@@ -112,8 +112,39 @@ export async function onRequest(context) {
         }
     }
 
-    if (!q.id) {
-        return new Response(JSON.stringify({ error: 'missing id' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+    if ('url' in q) {
+        const target = q.url;
+        if (!target) {
+            return new Response(JSON.stringify({ error: 'missing url' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+        }
+        let targetOrigin;
+        try {
+            targetOrigin = new URL(target).origin;
+        } catch {
+            return new Response(JSON.stringify({ error: 'invalid url' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+        }
+        const proxyHeaders = {
+            'Referer': targetOrigin + '/',
+            'Origin': targetOrigin,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        };
+        try {
+            const upstream = await fetch(target, { headers: proxyHeaders });
+            const responseHeaders = {
+                ...cors,
+                'Content-Type': upstream.headers.get('Content-Type') || 'application/octet-stream',
+                'Access-Control-Allow-Origin': cors['Access-Control-Allow-Origin'],
+            };
+            const cd = upstream.headers.get('Content-Disposition');
+            if (cd) responseHeaders['Content-Disposition'] = cd;
+            const cl = upstream.headers.get('Content-Length');
+            if (cl) responseHeaders['Content-Length'] = cl;
+            const cr = upstream.headers.get('Content-Range');
+            if (cr) responseHeaders['Content-Range'] = cr;
+            return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
+        } catch (err) {
+            return new Response(JSON.stringify({ error: err.message }), { status: 502, headers: { ...cors, 'Content-Type': 'application/json' } });
+        }
     }
 
     const vylaUrl = q.s
