@@ -1735,8 +1735,8 @@ function play(raw, skipProxy, videoId) {
     var mainPipBtn = document.getElementById('main-pip-btn');
 
     if (mainPipBtn) {
-        mainPipBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
+        mainPipBtn.addEventListener('click', function (event) {
+            event.stopPropagation();
 
             showSettingsView('download');
             haptic(6);
@@ -1753,8 +1753,10 @@ function play(raw, skipProxy, videoId) {
                 '<div class="source-skel-item"></div>' +
                 '</div>';
 
+            var episode = e || 1; // IMPORTANT: e must be your episode variable from outer scope
+
             var endpoint = s
-                ? `https://vyla-api.pages.dev/api/downloads/tv/${id}/${s}/${e || 1}`
+                ? `https://vyla-api.pages.dev/api/downloads/tv/${id}/${s}/${episode}`
                 : `https://vyla-api.pages.dev/api/downloads/movie/${id}`;
 
             function fetchWithRetry(attempts = 0) {
@@ -1809,9 +1811,7 @@ function play(raw, skipProxy, videoId) {
                                 '<div class="source-skel-item"></div>' +
                                 '</div>';
 
-                            setTimeout(() => {
-                                fetchWithRetry(attempts + 1);
-                            }, delays[attempts]);
+                            setTimeout(() => fetchWithRetry(attempts + 1), delays[attempts]);
                         } else {
                             list.innerHTML =
                                 '<div style="padding:20px;text-align:center;color:var(--white-45);font-size:14px;">Failed to fetch downloads.</div>';
