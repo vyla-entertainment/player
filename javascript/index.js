@@ -1753,8 +1753,7 @@ function play(raw, skipProxy, videoId) {
                 '<div class="source-skel-item"></div>' +
                 '</div>';
 
-            var episode = e || 1; // IMPORTANT: e must be your episode variable from outer scope
-
+            var episode = e || 1;
             var endpoint = s
                 ? `https://vyla-api.pages.dev/api/downloads/tv/${id}/${s}/${episode}`
                 : `https://vyla-api.pages.dev/api/downloads/movie/${id}`;
