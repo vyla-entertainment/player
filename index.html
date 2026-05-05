@@ -11,9 +11,6 @@
     <div id="loader">
         <div id="loader-bg"></div>
         <span id="loader-msg"></span>
-        <div id="loader-sources-carousel">
-            <div id="loader-sources-track"></div>
-        </div>
     </div>
 
     <div id="player">
@@ -57,25 +54,28 @@
                         <div id="thumb"></div>
                     </div>
                 </div>
-                <div id="time-row">
-                    <span id="t-cur">0:00</span>
-                    <span id="t-dur">0:00</span>
-                </div>
             </div>
 
             <div id="controls">
                 <div id="control-row">
-                    <button id="btn-play" class="ctrl-btn"><i class="fa-solid fa-play" id="play-ico"></i></button>
-                    <div style="flex:1;"></div>
-                    <span id="ep-current-title"
-                        style="display:none;color:var(--white-92);font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">S1
-                        E1</span>
-                    <div id="settings-btn-wrap">
-                        <button id="btn-settings" class="ctrl-btn" title="Settings"><i
-                                class="fa-solid fa-cog"></i></button>
+                    <div id="play-btn-wrap">
+                        <button id="btn-play" class="ctrl-btn"><i class="fa-solid fa-play" id="play-ico"></i></button>
                     </div>
-                    <button id="btn-pip" class="ctrl-btn"><i class="fa-solid fa-window-restore"></i></button>
-                    <button id="btn-fullscreen" class="ctrl-btn"><i class="fa-solid fa-expand"></i></button>
+                    <div id="time-row">
+                        <span id="t-cur">0:00</span>
+                        <span>/</span>
+                        <span id="t-dur">0:00</span>
+                    </div>
+                    <div class="ctrl-spacer"></div>
+                    <div class="right-controls">
+                        <span id="ep-current-title" class="ep-current-title-label"></span>
+                        <div id="settings-btn-wrap">
+                            <button id="btn-settings" class="ctrl-btn" title="Settings"><i
+                                    class="fa-solid fa-cog"></i></button>
+                        </div>
+                        <button id="btn-pip" class="ctrl-btn"><i class="fa-solid fa-window-restore"></i></button>
+                        <button id="btn-fullscreen" class="ctrl-btn"><i class="fa-solid fa-expand"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -87,9 +87,8 @@
 
         <div id="subtitle-display"><span id="subtitle-text"></span></div>
 
-        <div id="unmute-hint"
-            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:rgba(0,0,0,0.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#fff;font-family:var(--font);font-size:14px;font-weight:600;padding:14px 22px;border-radius:100px;display:flex;align-items:center;gap:10px;cursor:pointer;letter-spacing:0.02em;pointer-events:auto;transition:opacity 0.3s ease;opacity:0;pointer-events:none;">
-            <i class="fa-solid fa-volume-xmark" style="font-size:16px;"></i> Tap to unmute
+        <div id="unmute-hint">
+            <i class="fa-solid fa-volume-xmark"></i> Tap to unmute
         </div>
 
         <div id="ep-panel-overlay"></div>
@@ -136,21 +135,27 @@
                     </div>
                     <div class="settings-tile" data-nav="sources">
                         <span class="tile-label">Source</span>
-                        <span class="tile-value" id="lbl-source">Auto</span>
+                        <span class="tile-value" id="lbl-source">Loading</span>
                     </div>
-                    <div class="settings-tile" data-nav="speed">
-                        <span class="tile-label">Playback</span>
-                        <span class="tile-value" id="lbl-speed">Normal</span>
-                    </div>
-                    <div class="settings-tile" data-nav="subtitle">
+                    <div class="settings-tile" data-nav="subtitles">
                         <span class="tile-label">Subtitles</span>
                         <span class="tile-value" id="lbl-subtitle">Off</span>
                     </div>
+                    <div class="settings-tile" data-nav="video">
+                        <span class="tile-label">Video</span>
+                        <span class="tile-value" id="lbl-video">Auto</span>
+                    </div>
                 </div>
                 <div class="settings-main-list">
+                    <div class="settings-main-divider"></div>
                     <div class="settings-main-item" id="main-pip-btn">
                         <i class="fa-solid fa-download"></i>
                         <span>Download</span>
+                        <i class="fa-solid fa-chevron-right settings-main-chevron"></i>
+                    </div>
+                    <div class="settings-main-item" id="main-watchparty-btn">
+                        <i class="fa-solid fa-podcast"></i>
+                        <span>Watch Party</span>
                         <i class="fa-solid fa-chevron-right settings-main-chevron"></i>
                     </div>
                     <div class="settings-main-divider"></div>
@@ -161,22 +166,16 @@
                             <div class="settings-toggle-knob"></div>
                         </div>
                     </div>
-                    <div class="settings-main-item" data-nav="speed" id="main-playback-btn">
-                        <i class="fa-solid fa-sliders"></i>
+                    <div class="settings-main-item" id="main-playback-btn">
+                        <i class="fa-solid fa-gauge-high"></i>
                         <span>Playback settings</span>
                         <i class="fa-solid fa-chevron-right settings-main-chevron"></i>
                     </div>
-                    <div class="settings-main-item" data-nav="video" id="main-video-btn">
+                    <div class="settings-main-item" id="main-segment-btn">
                         <i class="fa-solid fa-film"></i>
-                        <span>Video settings</span>
+                        <span>Skip Segments</span>
                         <i class="fa-solid fa-chevron-right settings-main-chevron"></i>
                     </div>
-                    <a href="https://vyla.pages.dev/discord" target="_blank"
-                        class="settings-main-item settings-main-link">
-                        <i class="fa-brands fa-discord" style="color:var(--white-92);"></i>
-                        <span>Discord</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square settings-main-chevron"></i>
-                    </a>
                 </div>
             </div>
             <div id="settings-view-speed" class="settings-view">
@@ -219,55 +218,76 @@
                 <div class="sub-customize-title">Aspect Ratio</div>
                 <div class="settings-list" id="ratio-opts">
                     <div class="settings-list-item active" data-ratio="contain"><i class="fa-regular fa-circle-dot"></i>
-                        Fit
-                    </div>
+                        Fit</div>
                     <div class="settings-list-item" data-ratio="cover"><i class="fa-regular fa-circle"></i> Fill</div>
                     <div class="settings-list-item" data-ratio="fill"><i class="fa-regular fa-circle"></i> Stretch</div>
                 </div>
                 <div class="settings-list">
                     <div class="settings-list-item" id="btn-reset-video"><i class="fa-solid fa-rotate-left"></i> Reset
-                        to
-                        Default</div>
+                        to Default</div>
                 </div>
             </div>
-            <div id="settings-view-quality" class="settings-view">
+            <div class="settings-view" id="settings-view-quality">
                 <div class="settings-view-header">
                     <button class="settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
                     <span class="settings-view-title">Quality</span>
                 </div>
                 <div class="settings-list" id="quality-opts"></div>
             </div>
-            <div id="settings-view-sources" class="settings-view">
-                <div class="settings-view-header">
-                    <button class="settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
-                    <span class="settings-view-title">Source</span>
+            <div class="settings-view" id="settings-view-sources">
+                <div id="src-list-view">
+                    <div class="settings-view-subheader">
+                        <button class="svsh-back settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                        <span class="svsh-title">Sources</span>
+                        <button class="svsh-action" id="src-find-next-btn"><i
+                                class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <div id="sources-opts" class="sources-opts-list"></div>
                 </div>
-                <div class="settings-list" id="sources-opts"></div>
+                <div id="src-detail-view">
+                    <div class="settings-view-subheader">
+                        <button class="svsh-back" id="src-detail-back"><i class="fa-solid fa-arrow-left"></i></button>
+                        <span class="svsh-title" id="src-detail-title">Source</span>
+                        <span></span>
+                    </div>
+                    <div id="src-detail-body" class="src-detail-body-wrap"></div>
+                </div>
             </div>
-            <div id="settings-view-subtitle" class="settings-view">
-                <div class="settings-view-header" style="justify-content:space-between;" id="sub-main-header">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <button class="settings-back-btn" id="sub-main-back-btn"><i
-                                class="fa-solid fa-arrow-left"></i></button>
-                        <span class="settings-view-title" id="sub-view-title">Subtitles</span>
+            <div class="settings-view" id="settings-view-subtitles">
+                <div id="sub-lang-group-view">
+                    <div class="settings-view-subheader">
+                        <button class="svsh-back settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                        <span class="svsh-title">Subtitles</span>
+                        <button class="svsh-action" id="sub-customize-open-btn">Customize</button>
                     </div>
-                    <button id="sub-customize-open-btn" class="sub-hdr-customize-btn">Customize</button>
-                </div>
-                <div id="sub-lang-view">
                     <div class="sub-special-list">
-                        <div class="sub-special-item sub-off-item active-sub-item" data-sub="off">
+                        <div class="sub-special-row" id="sub-off-row">
                             <span>Off</span>
-                            <i class="fa-solid fa-check"></i>
+                            <span class="sub-row-check" id="sub-off-check"><i class="fa-solid fa-check"></i></span>
                         </div>
-                        <div class="sub-special-item" data-sub="auto">Auto select</div>
-                        <div class="sub-special-item" data-sub="upload">Drop or upload file</div>
-                        <div class="sub-special-item" data-sub="paste">Paste subtitle data</div>
+                        <div class="sub-special-row">Auto select</div>
+                        <div class="sub-special-row">Drop or upload file</div>
+                        <div class="sub-special-row">Paste subtitle data</div>
                     </div>
-                    <div class="sub-lang-divider"></div>
-                    <div class="sub-lang-list" id="subtitle-opts"></div>
+                    <div id="sub-section-divider" class="sub-section-divider"></div>
+                    <div id="sub-lang-groups" class="sub-lang-groups-list"></div>
                 </div>
-
-                <div id="sub-custom-view" style="display:none;">
+                <div id="sub-lang-entries-view">
+                    <div class="settings-view-subheader">
+                        <button class="svsh-back" id="sub-entries-back"><i class="fa-solid fa-arrow-left"></i></button>
+                        <span class="svsh-title" id="sub-entries-title">English</span>
+                        <button class="svsh-action" id="sub-entries-refresh"><i
+                                class="fa-solid fa-rotate-right"></i></button>
+                    </div>
+                    <div id="sub-entries-list" class="sub-entries-list"></div>
+                </div>
+                <div id="sub-custom-view" class="sub-custom-view">
+                    <div class="settings-view-subheader">
+                        <button class="svsh-back" id="sub-custom-back-btn"><i
+                                class="fa-solid fa-arrow-left"></i></button>
+                        <span class="svsh-title">Customize Subtitles</span>
+                        <span></span>
+                    </div>
                     <div class="sub-presets-section">
                         <div class="sub-custom-section-lbl">Quick Styles</div>
                         <div class="sub-presets-grid">
@@ -289,10 +309,8 @@
                             </button>
                         </div>
                     </div>
-
                     <div class="sub-simple-controls">
                         <div class="sub-custom-section-lbl">Quick Adjustments</div>
-
                         <div class="sub-simple-row">
                             <div class="sub-simple-control">
                                 <label class="sub-simple-label">Text Size</label>
@@ -303,7 +321,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="sub-simple-row">
                             <div class="sub-simple-control">
                                 <label class="sub-simple-label">Position</label>
@@ -313,7 +330,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="sub-simple-row">
                             <div class="sub-simple-control">
                                 <label class="sub-simple-label">Background</label>
@@ -325,14 +341,12 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="sub-advanced-toggle">
                         <button id="sub-advanced-btn" class="sub-advanced-toggle-btn">
                             <span>Advanced Settings</span>
                             <i class="fa-solid fa-chevron-down"></i>
                         </button>
                     </div>
-
                     <div id="sub-advanced-content" style="display:none;">
                         <div class="sub-custom-body">
                             <div class="sub-custom-row">
@@ -378,9 +392,7 @@
                             <div class="sub-custom-row">
                                 <div class="sub-custom-row-left">
                                     <span class="sub-custom-label">Background blur</span>
-                                    <span class="sub-custom-hint">Disabling caption background blur may fix some
-                                        flickering
-                                        issues</span>
+                                    <span class="sub-custom-hint">Disabling may fix flickering issues</span>
                                 </div>
                                 <div class="settings-toggle on" id="sub-bg-blur-toggle">
                                     <div class="settings-toggle-knob"></div>
@@ -448,7 +460,7 @@
                                 <span class="sub-custom-label">Background color</span>
                                 <div class="sub-color-swatches">
                                     <button class="sub-bg-swatch sub-bg-swatch-active" data-bg-color="transparent"
-                                        style="background:linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);background-size:10px 10px;background-position:0 0, 0 5px, 5px -5px, -5px 0px;"><i
+                                        style="background:linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%);background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0px;"><i
                                             class="fa-solid fa-check" style="color:#000;"></i></button>
                                     <button class="sub-bg-swatch" data-bg-color="#000000"
                                         style="background:#000000;"></button>
@@ -490,7 +502,7 @@
                                 <span class="sub-custom-label">Vertical position</span>
                                 <div class="select-wrapper" style="min-width:110px;">
                                     <select id="sub-pos-select" class="settings-select">
-                                        <option value="mid">Very Bottom</option>
+                                        <option value="bottom">Very Bottom</option>
                                         <option value="low">Bottom</option>
                                         <option value="mid">Mid</option>
                                     </select>
@@ -499,17 +511,63 @@
                             </div>
                             <div class="settings-list">
                                 <div class="settings-list-item" id="sub-custom-reset-btn"><i
-                                        class="fa-solid fa-rotate-left"></i>
-                                    Reset
+                                        class="fa-solid fa-rotate-left"></i> Reset
                                     to Default</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            <div class="settings-view" id="settings-view-watchparty">
+                <div class="settings-view-subheader">
+                    <button class="svsh-back settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span class="svsh-title">Watch Party</span>
+                    <span></span>
+                </div>
+                <div id="wp-main-view" class="wp-view">
+                    <button id="wp-host-btn" class="wp-btn-primary">Host a Watch Party</button>
+                    <button id="wp-join-btn" class="wp-btn-secondary">Join a Watch Party</button>
+                </div>
+                <div id="wp-join-view" class="wp-view wp-join-view">
+                    <input id="wp-code-input" type="text" placeholder="Enter party code" class="wp-code-input">
+                    <div class="wp-join-actions">
+                        <button id="wp-join-cancel-btn" class="wp-btn-secondary">Cancel</button>
+                        <button id="wp-join-confirm-btn" class="wp-btn-primary">Join</button>
+                    </div>
+                </div>
+                <div id="wp-hosting-view" class="wp-view wp-hosting-view">
+                    <div class="wp-backend-info">
+                        All users must use the same backend server<br>
+                        <span id="wp-backend-label" class="wp-backend-label"></span>
+                    </div>
+                    <div class="wp-hosting-subtitle">Hosting on <span id="wp-backend-name">Vyla</span></div>
+                    <div id="wp-code-display" class="wp-code-display">
+                        <span id="wp-room-code" class="wp-room-code"></span>
+                        <i class="fa-solid fa-copy wp-copy-icon"></i>
+                    </div>
+                    <div class="wp-share-hint">Share this code with friends (click to copy link)</div>
+                    <div class="wp-overlay-row">
+                        <span class="wp-overlay-label">Show status overlay</span>
+                        <div class="settings-toggle" id="wp-overlay-toggle">
+                            <div class="settings-toggle-knob"></div>
+                        </div>
+                    </div>
+                    <div id="wp-members-list" class="wp-members-list"></div>
+                    <button id="wp-leave-btn" class="wp-btn-leave">Leave Watch Party</button>
+                </div>
+            </div>
+            <div class="settings-view" id="settings-view-segments">
+                <div class="settings-view-subheader">
+                    <button class="svsh-back settings-back-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                    <span class="svsh-title">Skip Segments</span>
+                    <span></span>
+                </div>
+                <div id="seg-content" class="seg-content"></div>
+            </div>
         </div>
         <button id="settings-close-btn">Close</button>
     </div>
 
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="javascript/index.js"></script>
 </body>
