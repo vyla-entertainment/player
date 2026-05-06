@@ -1,35 +1,5 @@
 var alive = true;
 var shouldHideLoader = false;
-var blocked = false;
-
-(function () {
-    var allowedOrigins = ['https://vyla.pages.dev', 'http://localhost', 'http://localhost:7860', 'http://169.254.162.163:7860'];
-    var anc = document.referrer ? new URL(document.referrer).origin : '';
-    var isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    var isInIframe = window.self !== window.top;
-    var isAllowedEmbed = isInIframe && allowedOrigins.some(function (o) { return anc.startsWith(o); });
-    var isAllowedOrigin = allowedOrigins.some(function (o) { return location.origin === o; });
-
-    if (!isLocalhost && (!isAllowedEmbed) && (!isAllowedOrigin)) {
-        var loader = document.getElementById('loader');
-        if (loader) {
-            var p = new URLSearchParams(location.search);
-            var t = p.get('type') || (p.get('s') ? 'tv' : 'movie');
-            var mid = p.get('id');
-            var season = p.get('s');
-            var ep = p.get('e');
-            var movieUrl = 'vyla.pages.dev/player?type=movie&id=' + (mid || 'tmdbid');
-            var showUrl = 'vyla.pages.dev/player?type=tv&id=' + (mid || 'tmdbid') + '&s=' + (season || 'thenumber') + '&e=' + (ep || 'thenumber');
-            document.getElementById('loader-msg').innerHTML =
-                '<span class="loader-msg-title">This site cannot be visited this way.</span>' +
-                '<span class="loader-msg-url">' + (t === 'tv'
-                    ? 'vyla.pages.dev/player?type=tv&id=' + (mid || 'tmdbid') + '&s=' + (season || 'thenumber') + '&e=' + (ep || 'thenumber')
-                    : 'vyla.pages.dev/player?type=movie&id=' + (mid || 'tmdbid')) + '</span>';
-        }
-        blocked = true;
-        return;
-    }
-})();
 
 function initLoaderBackdrop() {
     var loaderBg = document.getElementById('loader-bg');
@@ -90,9 +60,7 @@ function isMobile() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    if (!blocked) {
-        initLoaderBackdrop();
-    }
+    initLoaderBackdrop();
 
     if (isMobile()) {
         var mainVideo = document.getElementById('v');
@@ -112,31 +80,27 @@ function hideLoader() {
 }
 
 document.addEventListener('keydown', function (e) {
-    if (e.key === 'F' || e.key === 'f') {
-        var player = document.getElementById('player');
-        var v = document.getElementById('v');
-        if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
-            if (v && v.webkitDisplayingFullscreen) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') { v.currentTime = Math.max(0, v.currentTime - 10); showUI(); }
+    if (e.key === 'ArrowRight') { v.currentTime = Math.min(v.duration || 0, v.currentTime + 10); showUI(); }
+    if (e.key === ' ' || e.key === 'k' || e.key === 'K') { e.preventDefault(); haptic(10); v.paused ? v.play() : v.pause(); }
+    if (e.key === 'f' || e.key === 'F') {
+        if (isIOS()) {
+            if (v.webkitDisplayingFullscreen) {
                 v.webkitExitFullscreen();
-            } else if (v) {
+            } else {
                 v.webkitEnterFullscreen();
             }
             return;
         }
-        var fsElement = document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.mozFullScreenElement ||
-            document.msFullscreenElement;
-        if (!fsElement) {
-            if (player.requestFullscreen) player.requestFullscreen();
-            else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
-            else if (player.mozRequestFullScreen) player.mozRequestFullScreen();
-            else if (player.msRequestFullscreen) player.msRequestFullscreen();
-        } else {
+        var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        var player = document.getElementById('player');
+        if (fsEl) {
             if (document.exitFullscreen) document.exitFullscreen();
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-            else if (document.msExitFullscreen) document.msExitFullscreen();
+        } else {
+            if (player.requestFullscreen) player.requestFullscreen();
+            else if (player.webkitRequestFullscreen) player.webkitRequestFullscreen();
         }
     }
 });
@@ -156,166 +120,165 @@ function showNowPlayingToast(title) {
     }, 4500);
 }
 
-if (!blocked) {
-    if (id) {
-        var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
 
-        (function () {
-            var loaderEl = document.getElementById('loader');
-            var loaderBgEl = document.getElementById('loader-bg');
+if (id) {
+    var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
 
-            var spinnerEl = document.createElement('div');
-            spinnerEl.id = 'loader-spinner-wrap';
-            spinnerEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);z-index:30;display:flex;flex-direction:column;align-items:center;gap:20px;pointer-events:none;';
-            spinnerEl.innerHTML =
-                '<svg width="56" height="56" viewBox="0 0 52 52" style="filter:drop-shadow(0 0 18px rgba(255,255,255,0.18));animation:_vyla_spin 0.9s linear infinite"><style>@keyframes _vyla_spin{to{transform:rotate(360deg)}}</style><circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="70"/></svg>';
-            if (loaderBgEl) loaderBgEl.appendChild(spinnerEl);
-            else if (loaderEl) loaderEl.appendChild(spinnerEl);
+    (function () {
+        var loaderEl = document.getElementById('loader');
+        var loaderBgEl = document.getElementById('loader-bg');
 
-            fetch('/api?sources=1&id=' + id + (s ? '&s=' + s + '&e=' + (e || '1') : ''))
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data.sources && data.sources.length) {
-                        var names = data.sources.map(function (src) { return src.label || src.source || 'unknown'; });
-                        var lbl = document.getElementById('loader-spinner-label');
-                        if (lbl && names[0]) lbl.textContent = 'Connecting to ' + names[0] + '\u2026';
-                    }
-                })
-                .catch(function () { });
+        var spinnerEl = document.createElement('div');
+        spinnerEl.id = 'loader-spinner-wrap';
+        spinnerEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);z-index:30;display:flex;flex-direction:column;align-items:center;gap:20px;pointer-events:none;';
+        spinnerEl.innerHTML =
+            '<svg width="56" height="56" viewBox="0 0 52 52" style="filter:drop-shadow(0 0 18px rgba(255,255,255,0.18));animation:_vyla_spin 0.9s linear infinite"><style>@keyframes _vyla_spin{to{transform:rotate(360deg)}}</style><circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.88)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="70"/></svg>';
+        if (loaderBgEl) loaderBgEl.appendChild(spinnerEl);
+        else if (loaderEl) loaderEl.appendChild(spinnerEl);
 
-            var _origHide = window.hideLoader;
-            window.hideLoader = function () {
-                if (spinnerEl) spinnerEl.style.display = 'none';
-                var carousel = document.getElementById('loader-sources-carousel');
-                if (carousel) carousel.style.display = 'none';
-                var track = document.getElementById('loader-sources-track');
-                if (track) track.innerHTML = '';
-                var errScreen = document.getElementById('error-screen');
-                if (errScreen) errScreen.classList.remove('show');
-                if (_origHide) _origHide();
-            };
-        })();
+        fetch('/api?sources=1&id=' + id + (s ? '&s=' + s + '&e=' + (e || '1') : ''))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.sources && data.sources.length) {
+                    var names = data.sources.map(function (src) { return src.label || src.source || 'unknown'; });
+                    var lbl = document.getElementById('loader-spinner-label');
+                    if (lbl && names[0]) lbl.textContent = 'Connecting to ' + names[0] + '\u2026';
+                }
+            })
+            .catch(function () { });
 
-        function fetchWithRetry(attempts) {
-            return fetch(apiUrl)
-                .then(function (r) {
-                    var ct = r.headers.get('Content-Type') || '';
-                    if (ct.includes('application/json')) {
-                        return r.json().then(function (d) {
-                            if (d.error || !d.url) {
-                                throw new Error(d.error || 'no url');
-                            }
-                            return { type: 'json', data: d };
+        var _origHide = window.hideLoader;
+        window.hideLoader = function () {
+            if (spinnerEl) spinnerEl.style.display = 'none';
+            var carousel = document.getElementById('loader-sources-carousel');
+            if (carousel) carousel.style.display = 'none';
+            var track = document.getElementById('loader-sources-track');
+            if (track) track.innerHTML = '';
+            var errScreen = document.getElementById('error-screen');
+            if (errScreen) errScreen.classList.remove('show');
+            if (_origHide) _origHide();
+        };
+    })();
+
+    function fetchWithRetry(attempts) {
+        return fetch(apiUrl)
+            .then(function (r) {
+                var ct = r.headers.get('Content-Type') || '';
+                if (ct.includes('application/json')) {
+                    return r.json().then(function (d) {
+                        if (d.error || !d.url) {
+                            throw new Error(d.error || 'no url');
+                        }
+                        return { type: 'json', data: d };
+                    });
+                } else if (ct.includes('mpegurl') || ct.includes('m3u8')) {
+                    return { type: 'm3u8', url: apiUrl };
+                } else {
+                    throw new Error('unexpected content type');
+                }
+            })
+            .catch(function (err) {
+                if (attempts > 0) {
+                    return new Promise(function (resolve) {
+                        setTimeout(function () {
+                            resolve(fetchWithRetry(attempts - 1));
+                        }, 500);
+                    });
+                }
+                throw err;
+            });
+    }
+
+    fetchWithRetry(2)
+        .then(function (result) {
+            shouldHideLoader = true;
+            hideLoader();
+            if (result.type === 'json') {
+                play(result.data.url, true, id);
+                var title = 'Unknown';
+                if (result.data.meta) {
+                    var m = result.data.meta;
+                    title = (m.title || m.name || 'Unknown');
+                    if ('mediaSession' in navigator) {
+                        var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
+                        navigator.mediaSession.metadata = new MediaMetadata({
+                            title: title,
+                            artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
                         });
-                    } else if (ct.includes('mpegurl') || ct.includes('m3u8')) {
-                        return { type: 'm3u8', url: apiUrl };
-                    } else {
-                        throw new Error('unexpected content type');
                     }
-                })
-                .catch(function (err) {
-                    if (attempts > 0) {
-                        return new Promise(function (resolve) {
-                            setTimeout(function () {
-                                resolve(fetchWithRetry(attempts - 1));
-                            }, 500);
-                        });
-                    }
-                    throw err;
-                });
-        }
+                }
+                if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                document.title = title;
 
-        fetchWithRetry(2)
-            .then(function (result) {
-                shouldHideLoader = true;
-                hideLoader();
-                if (result.type === 'json') {
-                    play(result.data.url, true, id);
-                    var title = 'Unknown';
-                    if (result.data.meta) {
-                        var m = result.data.meta;
-                        title = (m.title || m.name || 'Unknown');
+                var isTv = !!s;
+                var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
+                fetch(tmdbUrl)
+                    .then(function (mr) {
+                        if (!mr.ok) {
+                            throw new Error('TMDB fetch failed: ' + mr.status);
+                        }
+                        return mr.json();
+                    })
+                    .then(function (meta) {
+                        setTitleWithTmdbImage(title, meta);
+                    })
+                    .catch(function (err) {
+                        document.getElementById('title-text').textContent = title;
+                    });
+
+                showNowPlayingToast(title);
+            } else if (result.type === 'm3u8') {
+                var isTv = !!s;
+                var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
+
+                fetch(tmdbUrl)
+                    .then(function (mr) {
+                        if (!mr.ok) {
+                            throw new Error('TMDB fetch failed: ' + mr.status);
+                        }
+                        return mr.json();
+                    })
+                    .then(function (meta) {
+                        if (meta.success === false) {
+                            throw new Error(meta.status_message);
+                        }
+                        var title = (meta.title || meta.name || 'Unknown');
+                        if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                        document.title = title;
+                        setTitleWithTmdbImage(title, meta);
+                        showNowPlayingToast(title);
                         if ('mediaSession' in navigator) {
-                            var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
+                            var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
                             navigator.mediaSession.metadata = new MediaMetadata({
                                 title: title,
                                 artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
                             });
                         }
-                    }
-                    if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                    document.title = title;
-
-                    var isTv = !!s;
-                    var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
-                    fetch(tmdbUrl)
-                        .then(function (mr) {
-                            if (!mr.ok) {
-                                throw new Error('TMDB fetch failed: ' + mr.status);
-                            }
-                            return mr.json();
-                        })
-                        .then(function (meta) {
-                            setTitleWithTmdbImage(title, meta);
-                        })
-                        .catch(function (err) {
-                            document.getElementById('title-text').textContent = title;
-                        });
-
-                    showNowPlayingToast(title);
-                } else if (result.type === 'm3u8') {
-                    var isTv = !!s;
-                    var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
-
-                    fetch(tmdbUrl)
-                        .then(function (mr) {
-                            if (!mr.ok) {
-                                throw new Error('TMDB fetch failed: ' + mr.status);
-                            }
-                            return mr.json();
-                        })
-                        .then(function (meta) {
-                            if (meta.success === false) {
-                                throw new Error(meta.status_message);
-                            }
-                            var title = (meta.title || meta.name || 'Unknown');
-                            if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                            document.title = title;
-                            setTitleWithTmdbImage(title, meta);
-                            showNowPlayingToast(title);
-                            if ('mediaSession' in navigator) {
-                                var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
-                                navigator.mediaSession.metadata = new MediaMetadata({
-                                    title: title,
-                                    artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
-                                });
-                            }
-                        })
-                        .catch(function (err) {
-                        });
-                    play(result.url, true, id);
-                }
-            }).catch(function (err) {
-                var carousel = document.getElementById('loader-sources-carousel');
-                if (carousel) carousel.style.display = 'none';
-                var loaderMsg = document.getElementById('loader-msg');
-                if (loaderMsg) loaderMsg.style.display = 'none';
-                var errText = document.querySelector('.err-text');
-                if (errText) errText.innerHTML = '</i> Stream Unavailable';
-                var errSub = document.querySelector('.err-sub');
-                if (!errSub) {
-                    errText && errText.insertAdjacentHTML('afterend', '<div class="err-sub">No working sources were found for this title. It may be unavailable or the ID may be incorrect.</div>');
-                }
-                document.getElementById('error-screen').classList.add('show');
-            });
-    } else {
-        var errText = document.querySelector('.err-text');
-        if (errText) {
-            errText.innerHTML = 'No ID Provided';
-            document.querySelector('.err-text + *') && (document.querySelector('.err-text').insertAdjacentHTML('afterend', '<div class="err-sub">Add an <code>?id=</code> parameter to the URL — e.g. <code>?id=550</code> for a movie or <code>?id=1396&s=1&e=1</code> for a show.</div>'));
-        }
-        document.getElementById('error-screen').classList.add('show');
+                    })
+                    .catch(function (err) {
+                    });
+                play(result.url, true, id);
+            }
+        }).catch(function (err) {
+            var carousel = document.getElementById('loader-sources-carousel');
+            if (carousel) carousel.style.display = 'none';
+            var loaderMsg = document.getElementById('loader-msg');
+            if (loaderMsg) loaderMsg.style.display = 'none';
+            var errText = document.querySelector('.err-text');
+            if (errText) errText.innerHTML = '</i> Stream Unavailable';
+            var errSub = document.querySelector('.err-sub');
+            if (!errSub) {
+                errText && errText.insertAdjacentHTML('afterend', '<div class="err-sub">No working sources were found for this title. It may be unavailable or the ID may be incorrect.</div>');
+            }
+            document.getElementById('error-screen').classList.add('show');
+        });
+} else {
+    var errText = document.querySelector('.err-text');
+    if (errText) {
+        errText.innerHTML = 'No ID Provided';
+        document.querySelector('.err-text + *') && (document.querySelector('.err-text').insertAdjacentHTML('afterend', '<div class="err-sub">Add an <code>?id=</code> parameter to the URL — e.g. <code>?id=550</code> for a movie or <code>?id=1396&s=1&e=1</code> for a show.</div>'));
     }
+    document.getElementById('error-screen').classList.add('show');
 }
 
 var _hxInput = (function () {
@@ -463,6 +426,21 @@ function play(raw, skipProxy, videoId) {
     var tDur = document.getElementById('t-dur');
     var playIco = document.getElementById('play-ico');
     var ci = document.getElementById('ci');
+    var centerFlash = document.getElementById('center-flash');
+    var cfSkipLeft = document.getElementById('cf-skip-left');
+    var cfSkipRight = document.getElementById('cf-skip-right');
+
+    cfSkipLeft.addEventListener('click', function (e) {
+        e.stopPropagation();
+        v.currentTime = Math.max(0, v.currentTime - 10);
+        haptic();
+    });
+
+    cfSkipRight.addEventListener('click', function (e) {
+        e.stopPropagation();
+        v.currentTime = Math.min(v.duration || 0, v.currentTime + 10);
+        haptic();
+    });
     var skipL = document.getElementById('skip-left');
     var skipR = document.getElementById('skip-right');
     var skipLLbl = document.getElementById('skip-left-lbl');
@@ -486,9 +464,6 @@ function play(raw, skipProxy, videoId) {
     var tooltip = document.getElementById('tooltip');
 
     var hideTimer = null;
-    var tapTimer = null;
-    var tapCount = 0;
-    var tapSide = null;
     var dragging = false;
     var shown = false;
     var settingsOpen = false;
@@ -699,6 +674,13 @@ function play(raw, skipProxy, videoId) {
 
     function flashCenter() {
         ci.className = v.paused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
+        if (v.paused) {
+            ci.classList.add('paused');
+            centerFlash.classList.add('paused');
+        } else {
+            ci.classList.remove('paused');
+            centerFlash.classList.remove('paused');
+        }
         ci.classList.remove('pop');
         void ci.offsetWidth;
         ci.classList.add('pop');
@@ -1725,56 +1707,63 @@ function play(raw, skipProxy, videoId) {
 
     function renderSegmentsView() {
         var cont = document.getElementById('seg-content');
+
         if (!_segmentsData) {
             cont.innerHTML =
-                '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px;gap:14px;text-align:center;">' +
-                '<div style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;">' +
-                '<i class="fa-solid fa-film" style="font-size:22px;color:rgba(255,255,255,0.28);"></i></div>' +
-                '<div style="font-size:16px;font-weight:600;color:rgba(255,255,255,0.75);">No segments found</div>' +
-                '<div style="font-size:13px;color:rgba(255,255,255,0.35);line-height:1.6;max-width:240px;">No skip segments are available for this title yet.</div>' +
+                '<div class="seg-empty">' +
+                '<div class="seg-empty-icon"><i class="fa-solid fa-film"></i></div>' +
+                '<div class="seg-empty-title">No segments found</div>' +
+                '<div class="seg-empty-desc">No skip segments are available for this title yet.</div>' +
                 '</div>';
             return;
         }
+
         var types = ['intro', 'recap', 'credits', 'preview'];
         var found = [];
+
         types.forEach(function (t) {
             var arr = _segmentsData[t];
             if (arr && arr.length) {
                 arr.forEach(function (seg, idx) {
-                    var hasStart = seg.start_ms != null;
-                    var hasEnd = seg.end_ms != null;
-                    if (hasStart || hasEnd) {
+                    if (seg.start_ms != null || seg.end_ms != null) {
                         found.push({ type: t, seg: seg, idx: idx });
                     }
                 });
             }
         });
+
         if (!found.length) {
             cont.innerHTML =
-                '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px;gap:14px;text-align:center;">' +
-                '<div style="width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;">' +
-                '<i class="fa-solid fa-circle-check" style="font-size:22px;color:rgba(255,255,255,0.28);"></i></div>' +
-                '<div style="font-size:16px;font-weight:600;color:rgba(255,255,255,0.75);">No skip segments</div>' +
-                '<div style="font-size:13px;color:rgba(255,255,255,0.35);line-height:1.6;max-width:240px;">This title has no skippable segments in the database.</div>' +
+                '<div class="seg-empty">' +
+                '<div class="seg-empty-title">No skip segments</div>' +
+                '<div class="seg-empty-desc">This title has no skippable segments in the database.</div>' +
                 '</div>';
             return;
         }
-        var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+        var html = '<div class="seg-list">';
+
         found.forEach(function (item) {
-            var cfg = segTypeConfig[item.type] || { label: item.type, icon: 'fa-forward', color: '#888', btnLabel: 'Skip' };
+            var cfg = segTypeConfig[item.type] || { label: item.type, icon: 'fa-forward', color: '#888' };
             var seg = item.seg;
             var startStr = msToFmt(seg.start_ms);
             var endStr = msToFmt(seg.end_ms);
+
             html +=
-                '<div style="background:rgba(255,255,255,0.05);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;">' +
-                '<div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style="background:' + cfg.color + '20;">' +
-                '<i class="fa-solid ' + cfg.icon + '" style="font-size:17px;color:' + cfg.color + ';"></i></div>' +
-                '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:3px;">' + cfg.label + (found.filter(function (f) { return f.type === item.type; }).length > 1 ? ' ' + (item.idx + 1) : '') + '</div>' +
-                '<div style="font-size:12px;color:rgba(255,255,255,0.38);">' + startStr + ' \u2192 ' + endStr + '</div>' +
+                '<div class="seg-item">' +
+                '<div class="seg-icon" style="background:' + cfg.color + '20;">' +
+                '<i class="fa-solid ' + cfg.icon + '" style="color:' + cfg.color + ';"></i>' +
+                '</div>' +
+                '<div class="seg-info">' +
+                '<div class="seg-label">' +
+                cfg.label +
+                (found.filter(function (f) { return f.type === item.type; }).length > 1 ? ' ' + (item.idx + 1) : '') +
+                '</div>' +
+                '<div class="seg-time">' + startStr + ' → ' + endStr + '</div>' +
                 '</div>' +
                 '</div>';
         });
+
         html += '</div>';
         cont.innerHTML = html;
     }
@@ -2960,9 +2949,11 @@ function play(raw, skipProxy, videoId) {
         restoreTimestamp();
     }, 2000);
 
-    v.addEventListener('play', function () { syncIcon(); showUI(); });
+    v.addEventListener('play', function () { syncIcon(); ci.classList.remove('paused'); centerFlash.classList.remove('paused'); showUI(); });
     v.addEventListener('pause', function () {
         syncIcon();
+        ci.classList.add('paused');
+        centerFlash.classList.add('paused');
         showUI(true);
         clearTimeout(hideTimer);
         var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
@@ -3388,71 +3379,16 @@ function play(raw, skipProxy, videoId) {
         if (settingsPanel && settingsPanel.contains(e.target)) return;
         if (btnSettings && btnSettings.contains(e.target)) return;
         if (sourceBtnWrap && sourceBtnWrap.contains(e.target)) return;
+        if (e.target.closest('.cf-skip-btn')) return;
 
         if (!shown) {
             showUI(true);
             return;
         }
 
-        var rect = document.getElementById('player').getBoundingClientRect();
-        var cx = rect.left + rect.width / 2;
-        var cy = rect.top + rect.height / 2;
-        var dx = e.clientX - cx;
-        var dy = e.clientY - cy;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist <= 150) {
-            haptic();
-            flashCenter();
-            v.paused ? v.play() : v.pause();
-            return;
-        }
-
-        var leftZone = rect.left + rect.width * 0.25;
-        var rightZone = rect.left + rect.width * 0.75;
-        var inLeft = e.clientX < leftZone;
-        var inRight = e.clientX > rightZone;
-
-        if (!inLeft && !inRight) {
-            hideUI();
-            return;
-        }
-
-        var side = inLeft ? 'left' : 'right';
-
-        if (tapSide && tapSide !== side) {
-            tapCount = 0;
-            skipAccL = 0;
-            skipAccR = 0;
-            clearTimeout(tapTimer);
-        }
-        tapSide = side;
-        tapCount++;
-
-        var el = side === 'left' ? skipL : skipR;
-        var lbl = side === 'left' ? skipLLbl : skipRLbl;
-        if (tapCount >= 2) {
-            lbl.textContent = (side === 'left' ? '-' : '+') + (tapCount * 10) + 's';
-            el.classList.remove('hide');
-            void el.offsetWidth;
-            el.classList.add('show');
-        }
-
-        clearTimeout(tapTimer);
-
-        tapTimer = setTimeout(function () {
-            if (tapCount >= 2) {
-                doSkip(side, tapCount);
-            } else {
-                if (shown) {
-                    hideUI();
-                } else {
-                    showUI(true);
-                }
-            }
-            tapCount = 0;
-            tapSide = null;
-        }, 300);
+        haptic();
+        flashCenter();
+        v.paused ? v.play() : v.pause();
     });
 
     var isPressing = false;
