@@ -4,7 +4,7 @@ const ALLOWED_ORIGINS = [
     'http://169.254.162.163:7860',
 ];
 
-const VYLA_API_BASE = 'https://vyla-api.pages.dev';
+const VYLA_API_BASE = 'https://vyla-api-v2.pages.dev';
 const VYLA_TIMEOUT = 30000;
 
 function setCors(origin) {
