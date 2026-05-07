@@ -1811,11 +1811,8 @@ function play(raw, skipProxy, videoId) {
         skipBtn.addEventListener('click', function () {
             var seg = this._activeSeg;
             if (seg) {
-                console.log('Skipping to:', seg.end, 'from:', v.currentTime);
                 v.currentTime = seg.end;
                 haptic(6);
-            } else {
-                console.log('No active segment to skip');
             }
         });
 
