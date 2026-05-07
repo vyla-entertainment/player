@@ -391,7 +391,7 @@ function fetchSubDirect(sub) {
 }
 
 function fetchSubViaProxy(sub) {
-    var proxyUrl = 'https://vyla-api-v2.pages.dev/api/proxy?url=' + encodeURIComponent(sub.url);
+    var proxyUrl = 'https://vyla-api.pages.dev/api/proxy?url=' + encodeURIComponent(sub.url);
     return testSubtitle(Object.assign({}, sub, {
         url: proxyUrl,
         headers: { 'Referer': new URL(sub.url).origin + '/', 'Origin': new URL(sub.url).origin }
@@ -1262,8 +1262,8 @@ function play(raw, skipProxy, videoId) {
         });
     }
 
-    var PROXY = 'https://vyla-api-v2.pages.dev/api/proxy?url=';
-    var vylaBase = 'https://vyla-api-v2.pages.dev';
+    var PROXY = 'https://vyla-api.pages.dev/api/proxy?url=';
+    var vylaBase = 'https://vyla-api.pages.dev';
     var vylaEndpoint = s
         ? (vylaBase + '/api/subtitles/tv/' + id + '/' + s + '/' + (e || '1'))
         : (vylaBase + '/api/subtitles/movie/' + id);
@@ -2329,8 +2329,8 @@ function play(raw, skipProxy, videoId) {
 
             var episode = e || 1;
             var endpoint = s
-                ? `https://vyla-api-v2.pages.dev/api/downloads/tv/${id}/${s}/${episode}`
-                : `https://vyla-api-v2.pages.dev/api/downloads/movie/${id}`;
+                ? `https://vyla-api.pages.dev/api/downloads/tv/${id}/${s}/${episode}`
+                : `https://vyla-api.pages.dev/api/downloads/movie/${id}`;
 
             function fetchWithRetry(attempts = 0) {
                 var maxRetries = 2;
