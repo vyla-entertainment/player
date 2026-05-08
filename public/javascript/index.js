@@ -179,6 +179,9 @@ if (id) {
                         if (!url) {
                             throw new Error('no url');
                         }
+                        if (url.startsWith('/api')) {
+                            url = 'https://missourimonster-vyla-api.hf.space' + url;
+                        }
                         d.url = url;
                         return { type: 'json', data: d };
                     });
@@ -426,7 +429,7 @@ function play(raw, skipProxy, videoId) {
         document.head.appendChild(st);
     })();
 
-    var src = (skipProxy || raw.startsWith('https://missourimonster-vyla-api.hf.space')) ? raw : 'https://missourimonster-vyla-api.hf.space/api/movie?url=' + encodeURIComponent(raw);
+    var src = (skipProxy || raw.startsWith('https://missourimonster-vyla-api.hf.space')) ? raw : (raw.startsWith('/api') ? 'https://missourimonster-vyla-api.hf.space' + raw : 'https://missourimonster-vyla-api.hf.space/api/movie?url=' + encodeURIComponent(raw));
     var v = document.getElementById('v');
     var controlsWrapper = document.getElementById('player-controls-wrapper');
     var titleBar = document.getElementById('title-bar');
@@ -1204,6 +1207,10 @@ function play(raw, skipProxy, videoId) {
             testBandwidth: true,
             xhrSetup: function (xhr, url) {
                 xhr.withCredentials = false;
+                if (url && url.startsWith('http://missourimonster-vyla-api.hf.space')) {
+                    url = url.replace('http://', 'https://');
+                    xhr.open('GET', url, true);
+                }
             },
         };
         var hls = new Hls(hlsConfig);
