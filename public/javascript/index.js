@@ -1,3 +1,5 @@
+var TMDB_KEY = '338a47b75eab45d9e64e67088f910f93';
+
 var alive = true;
 var shouldHideLoader = false;
 
@@ -10,7 +12,7 @@ function initLoaderBackdrop() {
     if (!id) return;
 
     var isTv = !!p.get('s');
-    var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id : '/api?tmdb_movie=1&id=' + id;
+    var tmdbUrl = isTv ? 'https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY : 'https://api.themoviedb.org/3/movie/' + id + '?api_key=' + TMDB_KEY;
 
     fetch(tmdbUrl)
         .then(function (response) {
@@ -123,7 +125,7 @@ function showNowPlayingToast(title) {
 
 
 if (id) {
-    var apiUrl = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+    var apiUrl = 'https://missourimonster-vyla-api.hf.space/api/movie?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
 
     (function () {
         var loaderEl = document.getElementById('loader');
@@ -137,7 +139,7 @@ if (id) {
         if (loaderBgEl) loaderBgEl.appendChild(spinnerEl);
         else if (loaderEl) loaderEl.appendChild(spinnerEl);
 
-        fetch('/api?sources=1&id=' + id + (s ? '&s=' + s + '&e=' + (e || '1') : ''))
+        fetch('https://missourimonster-vyla-api.hf.space/api/movie?id=' + id + (s ? '&s=' + s + '&e=' + (e || '1') : ''))
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.sources && data.sources.length) {
@@ -167,9 +169,17 @@ if (id) {
                 var ct = r.headers.get('Content-Type') || '';
                 if (ct.includes('application/json')) {
                     return r.json().then(function (d) {
-                        if (d.error || !d.url) {
-                            throw new Error(d.error || 'no url');
+                        if (d.error) {
+                            throw new Error(d.error);
                         }
+                        var url = d.url;
+                        if (!url && d.sources && d.sources.length > 0) {
+                            url = d.sources[0].url;
+                        }
+                        if (!url) {
+                            throw new Error('no url');
+                        }
+                        d.url = url;
                         return { type: 'json', data: d };
                     });
                 } else if (ct.includes('mpegurl') || ct.includes('m3u8')) {
@@ -195,24 +205,9 @@ if (id) {
             shouldHideLoader = true;
             hideLoader();
             if (result.type === 'json') {
-                play(result.data.url, true, id);
-                var title = result.data.title || 'Unknown';
-                if (!result.data.title && result.data.meta) {
-                    var m = result.data.meta;
-                    title = (m.title || m.name || 'Unknown');
-                    if ('mediaSession' in navigator) {
-                        var img = 'https://image.tmdb.org/t/p/w500' + (m.still_path || m.backdrop_path || m.poster_path);
-                        navigator.mediaSession.metadata = new MediaMetadata({
-                            title: title,
-                            artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
-                        });
-                    }
-                }
-                if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                document.title = title;
-
                 var isTv = !!s;
-                var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
+                var tmdbUrl = isTv ? 'https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images' : 'https://api.themoviedb.org/3/movie/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images';
+
                 fetch(tmdbUrl)
                     .then(function (mr) {
                         if (!mr.ok) {
@@ -221,16 +216,33 @@ if (id) {
                         return mr.json();
                     })
                     .then(function (meta) {
+                        var title = (meta.title || meta.name || 'Unknown');
+                        if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                        document.title = title;
                         setTitleWithTmdbImage(title, meta);
+
+                        if ('mediaSession' in navigator) {
+                            var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
+                            navigator.mediaSession.metadata = new MediaMetadata({
+                                title: title,
+                                artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
+                            });
+                        }
+
+                        showNowPlayingToast(title);
+                        play(result.data.url, true, id);
                     })
                     .catch(function (err) {
+                        var title = result.data.title || 'Unknown';
+                        if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
+                        document.title = title;
                         document.getElementById('title-text').textContent = title;
+                        showNowPlayingToast(title);
+                        play(result.data.url, true, id);
                     });
-
-                showNowPlayingToast(title);
             } else if (result.type === 'm3u8') {
                 var isTv = !!s;
-                var tmdbUrl = isTv ? '/api?tmdb_tv=1&id=' + id + '&append_to_response=images' : '/api?tmdb_movie=1&id=' + id + '&append_to_response=images';
+                var tmdbUrl = isTv ? 'https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images' : 'https://api.themoviedb.org/3/movie/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images';
 
                 fetch(tmdbUrl)
                     .then(function (mr) {
@@ -414,7 +426,7 @@ function play(raw, skipProxy, videoId) {
         document.head.appendChild(st);
     })();
 
-    var src = (skipProxy || raw.startsWith('/api')) ? raw : '/api?url=' + encodeURIComponent(raw);
+    var src = (skipProxy || raw.startsWith('https://missourimonster-vyla-api.hf.space')) ? raw : 'https://missourimonster-vyla-api.hf.space/api/movie?url=' + encodeURIComponent(raw);
     var v = document.getElementById('v');
     var controlsWrapper = document.getElementById('player-controls-wrapper');
     var titleBar = document.getElementById('title-bar');
@@ -976,7 +988,7 @@ function play(raw, skipProxy, videoId) {
             if (v.readyState >= 2) return;
             retryCount++;
             showBuffering();
-            var endpoint = '/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
+            var endpoint = 'https://missourimonster-vyla-api.hf.space/api/movie?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id);
             fetch(endpoint)
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
@@ -2615,7 +2627,7 @@ function play(raw, skipProxy, videoId) {
             showSrcFailed(detailBody);
         }, timeout);
 
-        var testUrl = source.url || ('/api?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id));
+        var testUrl = source.url || ('https://missourimonster-vyla-api.hf.space/api/movie?' + (s ? 'id=' + id + '&s=' + s + '&e=' + (e || '1') : 'id=' + id));
         fetch(testUrl, { method: 'HEAD' })
             .then(function (r) {
                 if (cancelled) return;
@@ -2658,7 +2670,7 @@ function play(raw, skipProxy, videoId) {
     function fetchSources() {
         var sourcesOpts = document.getElementById('sources-opts');
         if (sourcesOpts) sourcesOpts.innerHTML = '<div class="source-skeleton"><div class="source-skel-item"></div><div class="source-skel-item"></div><div class="source-skel-item"></div></div>';
-        var endpoint = s ? '/api?sources=1&id=' + id + '&s=' + s + '&e=' + (e || '1') : '/api?sources=1&id=' + id;
+        var endpoint = s ? 'https://missourimonster-vyla-api.hf.space/api/movie?id=' + id + '&s=' + s + '&e=' + (e || '1') : 'https://missourimonster-vyla-api.hf.space/api/movie?id=' + id;
         fetch(endpoint)
             .then(function (r) { return r.json(); })
             .then(function (d) {
@@ -2980,11 +2992,11 @@ function play(raw, skipProxy, videoId) {
             var nextE = parseInt(e || '1') + 1;
             var nextS = parseInt(s);
 
-            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+            fetch('https://missourimonster-vyla-api.hf.space/api/movie?id=' + id + '&s=' + nextS + '&e=' + nextE)
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d.error || !d.url) {
-                        fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                        fetch('https://missourimonster-vyla-api.hf.space/api/movie?id=' + id + '&s=' + (nextS + 1) + '&e=1')
                             .then(function (r) { return r.json(); })
                             .then(function (d2) {
                                 if (d2.error || !d2.url) return;
@@ -3042,11 +3054,11 @@ function play(raw, skipProxy, videoId) {
         var nextS = parseInt(s);
 
         setTimeout(function () {
-            fetch('/api?id=' + id + '&s=' + nextS + '&e=' + nextE)
+            fetch('https://missourimonster-vyla-api.hf.space/api/movie?id=' + id + '&s=' + nextS + '&e=' + nextE)
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d.error || !d.url) {
-                        return fetch('/api?id=' + id + '&s=' + (nextS + 1) + '&e=1')
+                        return fetch('https://missourimonster-vyla-api.hf.space/api/movie?id=' + id + '&s=' + (nextS + 1) + '&e=1')
                             .then(function (r) { return r.json(); })
                             .then(function (d2) {
                                 if (d2.error || !d2.url) return;
@@ -3103,7 +3115,7 @@ function play(raw, skipProxy, videoId) {
 
         epCurrentTitle.style.display = '';
 
-        fetch('/api?tmdb_season=1&id=' + id + '&s=' + currentSeason)
+        fetch('https://api.themoviedb.org/3/tv/' + id + '/season/' + currentSeason + '?api_key=' + TMDB_KEY)
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.episodes) {
@@ -3271,7 +3283,7 @@ function play(raw, skipProxy, videoId) {
         }
 
         function fetchSeason(season, cb) {
-            fetch('/api?tmdb_season=1&id=' + id + '&s=' + season)
+            fetch('https://api.themoviedb.org/3/tv/' + id + '/season/' + season + '?api_key=' + TMDB_KEY)
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     epSeasonData[season] = d.episodes || generateFallback(season);
@@ -3289,7 +3301,7 @@ function play(raw, skipProxy, videoId) {
             return arr;
         }
 
-        fetch('/api?tmdb_show=1&id=' + id)
+        fetch('https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY)
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 totalSeasons = d.number_of_seasons || currentSeason;
