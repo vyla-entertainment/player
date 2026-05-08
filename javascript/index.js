@@ -1444,7 +1444,11 @@ function play(raw, skipProxy, videoId) {
     document.getElementById('lbl-subtitle').textContent = 'Off';
 
     fetch(vylaEndpoint)
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+            var ct = r.headers.get('Content-Type') || '';
+            if (!ct.includes('application/json')) throw new Error('not json');
+            return r.json();
+        })
         .then(function (d) {
             var subs = Array.isArray(d) ? d : (d.subtitles || []);
             subs = subs.filter(function (s) { return s && (s.file || s.url) && s.label; });
