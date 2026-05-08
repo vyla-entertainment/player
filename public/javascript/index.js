@@ -1276,10 +1276,9 @@ function play(raw, skipProxy, videoId) {
     }
 
     var PROXY = 'https://missourimonster-vyla-api.hf.space/api/proxy?url=';
-    var vylaBase = 'https://missourimonster-vyla-api.hf.space';
     var vylaEndpoint = s
-        ? (vylaBase + '/api/subtitles/tv/' + id + '/' + s + '/' + (e || '1'))
-        : (vylaBase + '/api/subtitles/movie/' + id);
+        ? ('https://missourimonster-vyla-api.hf.space/api/subtitles/tv/' + id + '/' + s + '/' + (e || '1'))
+        : ('https://missourimonster-vyla-api.hf.space/api/subtitles/movie/' + id);
 
     var subLangList = document.getElementById('sub-lang-groups');
 
