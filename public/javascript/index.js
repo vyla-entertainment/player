@@ -171,8 +171,7 @@ if (id) {
                     var settled = 0;
                     var total = sourceNames.length;
                     var aggregatedSources = [];
-                    var vidlinkResult = null;
-                    var otherSources = [];
+                    var firstResolved = false;
 
                     sourceNames.forEach(function (name) {
                         var path = s
@@ -191,31 +190,21 @@ if (id) {
                                             ? 'https://missourimonster-vyla-api.hf.space' + d.url
                                             : d.url
                                     };
-                                    if (name === 'vidlink') {
-                                        vidlinkResult = entry;
-                                        aggregatedSources.unshift(entry);
-                                    } else {
-                                        otherSources.push(entry);
-                                        aggregatedSources.push(entry);
+                                    aggregatedSources.push(entry);
+                                    if (!firstResolved) {
+                                        firstResolved = true;
+                                        resolve({ first: entry, aggregated: aggregatedSources });
                                     }
                                 }
-
-                                if (settled === total) {
-                                    if (vidlinkResult) {
-                                        resolve({ first: vidlinkResult, aggregated: aggregatedSources });
-                                    } else if (aggregatedSources.length > 0) {
-                                        resolve({ first: aggregatedSources[0], aggregated: aggregatedSources });
-                                    } else {
-                                        reject(new Error('no working sources'));
-                                    }
+                                if (settled === total && !firstResolved) {
+                                    reject(new Error('no working sources'));
                                 }
                             })
                             .catch(function () {
                                 settled++;
-                                if (settled === total) {
-                                    if (vidlinkResult) {
-                                        resolve({ first: vidlinkResult, aggregated: aggregatedSources });
-                                    } else if (aggregatedSources.length > 0) {
+                                if (settled === total && !firstResolved) {
+                                    if (aggregatedSources.length > 0) {
+                                        firstResolved = true;
                                         resolve({ first: aggregatedSources[0], aggregated: aggregatedSources });
                                     } else {
                                         reject(new Error('no working sources'));
@@ -235,79 +224,77 @@ if (id) {
             shouldHideLoader = true;
             hideLoader();
 
-            sources = [result.aggregated[0] || result.first];
+            sources = result.aggregated.length ? result.aggregated : [result.first];
             sourcesLoaded = true;
             currentSourceIndex = 0;
-
-            var _lastSourceCount = 0;
-            var checkInterval = setInterval(function () {
-                if (result.aggregated.length !== _lastSourceCount) {
-                    _lastSourceCount = result.aggregated.length;
-                    sources = result.aggregated.slice();
-                    var opts = document.getElementById('sources-opts');
-                    if (opts && typeof buildSourceList === 'function') buildSourceList();
-                }
-            }, 600);
-
-            setTimeout(function () {
-                clearInterval(checkInterval);
-                sources = result.aggregated.slice();
-                sourcesLoaded = true;
-                var opts = document.getElementById('sources-opts');
-                if (opts && typeof buildSourceList === 'function') buildSourceList();
-            }, 20000);
 
             var isTv = !!s;
             var tmdbUrl = isTv
                 ? 'https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images'
                 : 'https://api.themoviedb.org/3/movie/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images';
 
-            function attemptPlayWithFallback(url, isFirstAttempt) {
-                play(url, true, id, function (success) {
-                    if (!success && sources.length > 1) {
-                        var currentIndex = sources.findIndex(s => s.url === url);
-                        var nextIndex = currentIndex + 1;
-                        if (nextIndex < sources.length) {
-                            console.log('Falling back to source:', sources[nextIndex].label);
-                            attemptPlayWithFallback(sources[nextIndex].url, false);
-                        }
-                    }
-                });
+            var metaTitle = 'Unknown';
+
+            function startPlayback() {
+                var src = sources[currentSourceIndex];
+                if (!src) {
+                    var errText = document.querySelector('.err-text');
+                    if (errText) errText.innerHTML = 'Stream Unavailable';
+                    var errSub = document.querySelector('.err-sub');
+                    if (!errSub && errText) errText.insertAdjacentHTML('afterend', '<div class="err-sub">All sources failed.</div>');
+                    document.getElementById('error-screen').classList.add('show');
+                    return;
+                }
+                window._fallbackSources = result.aggregated;
+                play(src.url, true, id);
+                if (typeof buildSourceList === 'function') buildSourceList();
             }
+
+            var checkInterval = setInterval(function () {
+                sources = result.aggregated.slice();
+                if (typeof buildSourceList === 'function') buildSourceList();
+            }, 600);
+
+            setTimeout(function () {
+                clearInterval(checkInterval);
+                sources = result.aggregated.slice();
+                if (typeof buildSourceList === 'function') buildSourceList();
+            }, 20000);
 
             fetch(tmdbUrl)
                 .then(function (mr) { return mr.json(); })
                 .then(function (meta) {
-                    var title = (meta.title || meta.name || 'Unknown');
-                    if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                    document.title = title;
-                    setTitleWithTmdbImage(title, meta);
+                    metaTitle = (meta.title || meta.name || 'Unknown');
+                    if (s) metaTitle += ' \u00b7 S' + s + 'E' + (e || '1');
+                    document.title = metaTitle;
+                    setTitleWithTmdbImage(metaTitle, meta);
                     if ('mediaSession' in navigator) {
                         var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
                         navigator.mediaSession.metadata = new MediaMetadata({
-                            title: title,
+                            title: metaTitle,
                             artwork: [{ src: img, sizes: '500x500', type: 'image/jpeg' }]
                         });
                     }
-                    showNowPlayingToast(title);
-                    attemptPlayWithFallback(result.first.url, true);
+                    showNowPlayingToast(metaTitle);
+                    startPlayback();
                 })
                 .catch(function () {
-                    var title = 'Unknown';
-                    if (s) title += ' \u00b7 S' + s + 'E' + (e || '1');
-                    document.title = title;
-                    document.getElementById('title-text').textContent = title;
-                    showNowPlayingToast(title);
-                    attemptPlayWithFallback(result.first.url, true);
+                    if (s) metaTitle += ' \u00b7 S' + s + 'E' + (e || '1');
+                    document.title = metaTitle;
+                    document.getElementById('title-text').textContent = metaTitle;
+                    showNowPlayingToast(metaTitle);
+                    startPlayback();
                 });
         })
         .catch(function () {
+            var spinnerEl = document.getElementById('loader-spinner-wrap');
+            if (spinnerEl) spinnerEl.style.display = 'none';
             var carousel = document.getElementById('loader-sources-carousel');
             if (carousel) carousel.style.display = 'none';
             var loaderMsg = document.getElementById('loader-msg');
             if (loaderMsg) loaderMsg.style.display = 'none';
             var errText = document.querySelector('.err-text');
-            if (errText) errText.innerHTML = '</i> Stream Unavailable';
+            if (errText) errText.innerHTML = 'Stream Unavailable';
             var errSub = document.querySelector('.err-sub');
             if (!errSub) {
                 errText && errText.insertAdjacentHTML('afterend', '<div class="err-sub">No working sources were found for this title. It may be unavailable or the ID may be incorrect.</div>');
@@ -474,33 +461,7 @@ fetch('https://restcountries.com/v3.1/all?fields=cca2,languages')
 
     });
 
-function playWithFallback(url, retryCount) {
-    if (retryCount === undefined) retryCount = 0;
-
-    play(url, true, id, function (success) {
-        if (!success && sources.length > retryCount + 1) {
-            setTimeout(function () {
-                playWithFallback(sources[retryCount + 1].url, retryCount + 1);
-            }, 500);
-        }
-    });
-}
-
-function play(raw, skipProxy, videoId, onError) {
-    var src = (skipProxy || raw.startsWith('https://missourimonster-vyla-api.hf.space')) ? raw : (raw.startsWith('/api') ? 'https://missourimonster-vyla-api.hf.space' + raw : 'https://missourimonster-vyla-api.hf.space/api/movie?url=' + encodeURIComponent(raw));
-
-    var originalOnError = v && v.onerror;
-
-    if (v) {
-        v.onerror = function (e) {
-            if (onError && sources.length > 1) {
-                console.log('Video error, trying next source');
-                onError(false);
-            } else if (originalOnError) {
-                originalOnError(e);
-            }
-        };
-    }
+function play(raw, skipProxy, videoId) {
     (function () {
         if (document.getElementById('_vyla_styles')) return;
         var st = document.createElement('style');
@@ -1281,25 +1242,65 @@ function play(raw, skipProxy, videoId, onError) {
         showBufferingImmediate();
         hls.loadSource(src);
         hls.attachMedia(v);
+
+        var _srcSettled = false;
+
+        function _doFallback() {
+            if (_srcSettled) return;
+            _srcSettled = true;
+            var nextIdx = currentSourceIndex + 1;
+            if (window._fallbackSources && nextIdx < window._fallbackSources.length) {
+                hls.destroy();
+                currentSourceIndex = nextIdx;
+                sources = window._fallbackSources;
+                window._fallbackSources = sources;
+                if (typeof buildSourceList === 'function') buildSourceList();
+                play(sources[currentSourceIndex].url, true, id);
+            }
+        }
+
+        var _stallTimer = setTimeout(function () {
+            if (!_srcSettled && (isNaN(v.duration) || v.duration === 0)) {
+                _doFallback();
+            }
+        }, 10000);
+
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            if (_srcSettled) return;
+            _srcSettled = true;
+            clearTimeout(_stallTimer);
             hideBuffering();
             buildQualityOpts();
         });
+
         hls.on(Hls.Events.LEVEL_SWITCHED, function () {
-            if (isAutoQuality) {
-                updateQualityLabel();
-            }
+            if (isAutoQuality) updateQualityLabel();
         });
+
         hls.on(Hls.Events.LEVEL_LOADED, function () {
             if (!isNaN(v.duration) && v.duration > 0) {
                 clearTimeout(retryTimer);
                 retryCount = maxRetries;
             }
         });
+
+        hls.on(Hls.Events.ERROR, function (event, data) {
+            if (data.fatal) {
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                    if (data.details === 'keyLoadError') return;
+                    _doFallback();
+                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                    if (!_srcSettled) hls.recoverMediaError();
+                }
+            }
+        });
+
         v.addEventListener('loadedmetadata', function () {
+            clearTimeout(_stallTimer);
             onReady();
             startDurationPoll();
         });
+
         v.addEventListener('canplay', function () {
             if (isNaN(v.duration) || v.duration === 0) return;
             clearTimeout(retryTimer);
@@ -1307,18 +1308,7 @@ function play(raw, skipProxy, videoId, onError) {
             tDur.textContent = fmt(v.duration);
             restoreTimestamp();
         });
-        hls.on(Hls.Events.ERROR, function (event, data) {
-            if (data.fatal) {
-                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                    if (data.details === 'keyLoadError') {
-                        return;
-                    }
-                    hls.startLoad();
-                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                    hls.recoverMediaError();
-                }
-            }
-        });
+
     } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
         showBufferingImmediate();
         v.src = src;
