@@ -171,7 +171,8 @@ if (id) {
                     var settled = 0;
                     var total = sourceNames.length;
                     var aggregatedSources = [];
-                    var firstResolved = false;
+                    var vidlinkResult = null;
+                    var otherSources = [];
 
                     sourceNames.forEach(function (name) {
                         var path = s
@@ -191,27 +192,30 @@ if (id) {
                                             : d.url
                                     };
                                     if (name === 'vidlink') {
+                                        vidlinkResult = entry;
                                         aggregatedSources.unshift(entry);
                                     } else {
+                                        otherSources.push(entry);
                                         aggregatedSources.push(entry);
                                     }
-                                    if (!firstResolved && name === 'vidlink') {
-                                        firstResolved = true;
-                                        resolve({ first: entry, aggregated: aggregatedSources });
-                                    } else if (!firstResolved && aggregatedSources.length === total) {
-                                        firstResolved = true;
-                                        resolve({ first: aggregatedSources[0], aggregated: aggregatedSources });
-                                    }
                                 }
-                                if (settled === total && !firstResolved) {
-                                    reject(new Error('no working sources'));
+
+                                if (settled === total) {
+                                    if (vidlinkResult) {
+                                        resolve({ first: vidlinkResult, aggregated: aggregatedSources });
+                                    } else if (aggregatedSources.length > 0) {
+                                        resolve({ first: aggregatedSources[0], aggregated: aggregatedSources });
+                                    } else {
+                                        reject(new Error('no working sources'));
+                                    }
                                 }
                             })
                             .catch(function () {
                                 settled++;
-                                if (settled === total && !firstResolved) {
-                                    if (aggregatedSources.length > 0) {
-                                        firstResolved = true;
+                                if (settled === total) {
+                                    if (vidlinkResult) {
+                                        resolve({ first: vidlinkResult, aggregated: aggregatedSources });
+                                    } else if (aggregatedSources.length > 0) {
                                         resolve({ first: aggregatedSources[0], aggregated: aggregatedSources });
                                     } else {
                                         reject(new Error('no working sources'));
@@ -258,6 +262,19 @@ if (id) {
                 ? 'https://api.themoviedb.org/3/tv/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images'
                 : 'https://api.themoviedb.org/3/movie/' + id + '?api_key=' + TMDB_KEY + '&append_to_response=images';
 
+            function attemptPlayWithFallback(url, isFirstAttempt) {
+                play(url, true, id, function (success) {
+                    if (!success && sources.length > 1) {
+                        var currentIndex = sources.findIndex(s => s.url === url);
+                        var nextIndex = currentIndex + 1;
+                        if (nextIndex < sources.length) {
+                            console.log('Falling back to source:', sources[nextIndex].label);
+                            attemptPlayWithFallback(sources[nextIndex].url, false);
+                        }
+                    }
+                });
+            }
+
             fetch(tmdbUrl)
                 .then(function (mr) { return mr.json(); })
                 .then(function (meta) {
@@ -273,7 +290,7 @@ if (id) {
                         });
                     }
                     showNowPlayingToast(title);
-                    play(result.first.url, true, id);
+                    attemptPlayWithFallback(result.first.url, true);
                 })
                 .catch(function () {
                     var title = 'Unknown';
@@ -281,7 +298,7 @@ if (id) {
                     document.title = title;
                     document.getElementById('title-text').textContent = title;
                     showNowPlayingToast(title);
-                    play(result.first.url, true, id);
+                    attemptPlayWithFallback(result.first.url, true);
                 });
         })
         .catch(function () {
@@ -457,7 +474,33 @@ fetch('https://restcountries.com/v3.1/all?fields=cca2,languages')
 
     });
 
-function play(raw, skipProxy, videoId) {
+function playWithFallback(url, retryCount) {
+    if (retryCount === undefined) retryCount = 0;
+
+    play(url, true, id, function (success) {
+        if (!success && sources.length > retryCount + 1) {
+            setTimeout(function () {
+                playWithFallback(sources[retryCount + 1].url, retryCount + 1);
+            }, 500);
+        }
+    });
+}
+
+function play(raw, skipProxy, videoId, onError) {
+    var src = (skipProxy || raw.startsWith('https://missourimonster-vyla-api.hf.space')) ? raw : (raw.startsWith('/api') ? 'https://missourimonster-vyla-api.hf.space' + raw : 'https://missourimonster-vyla-api.hf.space/api/movie?url=' + encodeURIComponent(raw));
+
+    var originalOnError = v && v.onerror;
+
+    if (v) {
+        v.onerror = function (e) {
+            if (onError && sources.length > 1) {
+                console.log('Video error, trying next source');
+                onError(false);
+            } else if (originalOnError) {
+                originalOnError(e);
+            }
+        };
+    }
     (function () {
         if (document.getElementById('_vyla_styles')) return;
         var st = document.createElement('style');
