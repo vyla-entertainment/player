@@ -581,6 +581,10 @@ function play(raw, skipProxy, videoId) {
         } catch (err) { return 1; }
     })();
 
+    var speedBoostEnabled = (function () {
+        try { return localStorage.getItem('speedBoostEnabled') !== 'false'; } catch (ex) { return true; }
+    })();
+
     function saveTimestamp(videoId, currentTime) {
         try {
             var timestamps = JSON.parse(localStorage.getItem('videoTimestamps') || '{}');
@@ -2383,6 +2387,18 @@ function play(raw, skipProxy, videoId) {
             }
             haptic(6);
         });
+
+        var speedBoostToggleEl = document.getElementById('speed-boost-toggle');
+        if (speedBoostToggleEl) {
+            if (!speedBoostEnabled) speedBoostToggleEl.classList.remove('on');
+            speedBoostToggleEl.addEventListener('click', function (e) {
+                e.stopPropagation();
+                speedBoostEnabled = !speedBoostEnabled;
+                speedBoostToggleEl.classList.toggle('on', speedBoostEnabled);
+                try { localStorage.setItem('speedBoostEnabled', speedBoostEnabled ? 'true' : 'false'); } catch (ex) { }
+                haptic(6);
+            });
+        }
     }
 
     var mainPipBtn = document.getElementById('main-pip-btn');
@@ -3283,7 +3299,7 @@ function play(raw, skipProxy, videoId) {
         if (btnSettings.contains(e.target)) return;
         if (e.button !== 0) return;
         _boostDidActivate = false;
-        _speedBoostTimer = setTimeout(function () { startSpeedBoost(); }, 600);
+        if (speedBoostEnabled) _speedBoostTimer = setTimeout(function () { startSpeedBoost(); }, 600);
     });
 
     playerEl.addEventListener('mouseup', function (e) {
@@ -3305,7 +3321,7 @@ function play(raw, skipProxy, videoId) {
         if (btnSettings.contains(e.target)) return;
         if (wrap.contains(e.target)) return;
         _boostDidActivate = false;
-        _speedBoostTimer = setTimeout(function () {
+        if (speedBoostEnabled) _speedBoostTimer = setTimeout(function () {
             if (!dragging) startSpeedBoost();
         }, 600);
     }, { passive: true });
