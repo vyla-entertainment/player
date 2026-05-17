@@ -1026,9 +1026,6 @@ function play(raw, skipProxy, videoId) {
 
     window.addEventListener('orientationchange', function () {
         setTimeout(function () {
-            if (settingsOpen) {
-                closeSettings();
-            }
             shown = false;
             showUI(true);
             var pcw = document.getElementById('player-controls-wrapper');

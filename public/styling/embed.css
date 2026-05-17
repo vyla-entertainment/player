@@ -110,6 +110,7 @@
 
     #settings-modal-wrap {
         gap: 4px;
+        height: 60vh;
     }
 
     #settings-panel {
@@ -124,7 +125,9 @@
         padding: 9px;
         font-size: 12px;
         border-radius: 8px;
-        margin-bottom: 1vh;
+        margin-bottom: 0;
+        position: sticky;
+        bottom: 0;
     }
 
     .settings-grid {
@@ -134,9 +137,9 @@
     }
 
     .settings-tile {
-        padding: 8px 6px;
-        border-radius: 8px;
-        gap: 3px;
+        padding: 8px 6px !important;
+        border-radius: 8px !important;
+        gap: 3px !important;
     }
 
     .tile-label {
@@ -485,28 +488,33 @@
 
     #settings-modal-wrap {
         padding: 0 var(--space-md) max(var(--space-md), env(safe-area-inset-bottom, var(--space-md)));
+        max-height: 90vh;
+        justify-content: flex-end;
     }
 
     #settings-panel {
         isolation: isolate;
         -webkit-transform: translateZ(0);
         transform: translateZ(0);
-        max-height: 52vh;
+        min-height: calc(90vh - 70px);
         max-width: 94vw;
+        flex-shrink: 1;
+        min-height: 0;
     }
 
     #settings-close-btn {
         max-width: 94vw;
-        margin-bottom: 1vh;
+        margin-bottom: 0;
+        flex-shrink: 0;
     }
 }
 
 @media (max-width: 768px) and (max-height: 700px) {
     :root {
-        --settings-max-h-mobile: 44vh;
+        --settings-max-h-mobile: 60vh;
     }
 
     #settings-panel {
-        max-height: 44vh;
+        min-height: calc(90vh - 70px);
     }
 }

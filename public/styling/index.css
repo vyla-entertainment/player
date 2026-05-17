@@ -1223,6 +1223,7 @@ video {
     opacity: 0;
     transform: translateY(20px);
     transition: var(--transition-fade);
+    padding: 0 var(--space-md) max(var(--space-md), env(safe-area-inset-bottom, var(--space-md)));
 }
 
 #settings-modal-wrap.open {
@@ -1276,7 +1277,10 @@ video {
     letter-spacing: 0.02em;
     transition: background 0.18s, transform 0.2s var(--ease-spring);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-    margin-bottom: 2vh;
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    margin-bottom: 0;
 }
 
 #settings-close-btn:hover {
@@ -1309,6 +1313,7 @@ video {
         top: auto;
         right: 14px;
         left: auto;
+        bottom: 20px;
         padding: 0;
         align-items: flex-end;
         justify-content: flex-end;
@@ -1327,7 +1332,9 @@ video {
         padding: 13px;
         font-size: 14px;
         border-radius: 12px;
-        margin-bottom: 3vh;
+        margin-bottom: 0;
+        position: sticky;
+        bottom: 0;
     }
 }
 
@@ -1685,13 +1692,6 @@ video {
 
 .settings-list-item:has(input[type="range"]) {
     justify-content: space-between;
-}
-
-@media (max-width: 768px) {
-    .settings-list-item {
-        padding: 14px var(--space-lg);
-        font-size: 15px;
-    }
 }
 
 .settings-menu-group {
@@ -2575,12 +2575,6 @@ video {
     padding: var(--space-lg) var(--space-xl) var(--space-xl);
     border-top: 1px solid var(--white-06);
     margin-top: -6px;
-}
-
-@media (max-width: 768px) {
-    #sub-customize {
-        padding: 0 var(--space-2xl) var(--space-2xl);
-    }
 }
 
 .sub-presets-section {
