@@ -1,90 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap');
-
-:root {
-    --font: 'Manrope', sans-serif;
-    --bg: #000;
-    --white: #fff;
-    --white-92: rgba(255, 255, 255, 0.92);
-    --white-85: rgba(255, 255, 255, 0.85);
-    --white-75: rgba(255, 255, 255, 0.75);
-    --white-60: rgba(255, 255, 255, 0.6);
-    --white-45: rgba(255, 255, 255, 0.45);
-    --white-22: rgba(255, 255, 255, 0.22);
-    --white-18: rgba(255, 255, 255, 0.18);
-    --white-12: rgba(255, 255, 255, 0.12);
-    --white-08: rgba(255, 255, 255, 0.08);
-    --white-06: rgba(255, 255, 255, 0.06);
-    --white-03: rgba(255, 255, 255, 0.03);
-    --black-85: rgba(0, 0, 0, 0.85);
-    --black-80: rgba(0, 0, 0, 0.8);
-    --black-70: rgba(0, 0, 0, 0.7);
-    --black-55: rgba(0, 0, 0, 0.55);
-    --grey-text: rgba(140, 140, 140, 0.85);
-
-    --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
-    --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
-    --menu-close-bg: rgba(0, 0, 0, 0.6);
-    --menu-bg: rgba(6, 6, 6, 0.2);
-    --menu-bg-strong: rgba(6, 6, 6, 0.4);
-    --menu-bg-stronger: rgba(6, 6, 6, 0.4);
-    --menu-blur: blur(10px) saturate(3);
-    --menu-blur-strong: blur(20px) saturate(3);
-    --menu-radius: 12px;
-
-    --ctrl-size: 45px;
-    --ctrl-size-sm: 36px;
-    --ctrl-icon-size: 18px;
-    --thumb-size: 16px;
-    --track-h: 5px;
-    --track-h-hover: 8px;
-    --track-radius: 4px;
-    --skip-icon-size: 30px;
-    --flash-icon-size: 64px;
-
-    --title-size: 15px;
-    --title-size-sm: 13px;
-    --time-size: 11px;
-    --toast-label-size: 10px;
-    --toast-title-size: 16px;
-
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 12px;
-    --space-lg: 16px;
-    --space-xl: 20px;
-    --space-2xl: 24px;
-    --space-3xl: 32px;
-
-    --controls-pad-x: 14px;
-    --controls-pad-bottom: 14px;
-    --title-pad-x: 20px;
-    --title-pad-top: 20px;
-    --title-pad-bottom: 72px;
-
-    --panel-width: 340px;
-    --panel-radius-mobile: 20px 20px 0 0;
-    --settings-width-desktop: 360px;
-    --settings-width-landscape: 520px;
-    --settings-max-h-mobile: 80vh;
-    --settings-max-h-desktop: 44vh;
-    --settings-max-h-landscape: 78vh;
-    --settings-radius: 18px;
-    --settings-radius-desktop: 16px;
-    --close-btn-radius: 14px;
-
-    --toast-top: 28px;
-    --floating-btn-bottom: 84px;
-    --floating-btn-side: 20px;
-
-    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-    --ease-spring: cubic-bezier(0.25, 1.4, 0.5, 1);
-    --ease-in: cubic-bezier(0.4, 0, 1, 1);
-    --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
-
-    --transition-controls: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
-    --transition-panel: transform 0.35s var(--ease-out), opacity 0.25s var(--ease-out);
-    --transition-fade: opacity 0.28s var(--ease-out), transform 0.28s var(--ease-out);
-}
+@import url('root.css');
 
 *,
 *::before,
@@ -544,8 +459,6 @@ video {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
     backdrop-filter: blur(8px) saturate(10);
     -webkit-backdrop-filter: blur(8px) saturate(10);
     background: var(--menu-bg);
