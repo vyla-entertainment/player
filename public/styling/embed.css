@@ -65,7 +65,8 @@
     }
 
     #time-row {
-        display: none;
+        height: 24px;
+        font-size: 10px;
     }
 
     #btn-episodes span {
@@ -435,9 +436,7 @@
         height: 34px;
         font-size: 1.3rem;
     }
-}
 
-@media (max-height: 350px) {
     #title-bar {
         display: none;
     }
