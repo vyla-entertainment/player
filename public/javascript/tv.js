@@ -56,6 +56,11 @@
         return w && w.classList.contains('open');
     }
 
+    function getEpPanelOpen() {
+        var p = document.getElementById('ep-panel');
+        return p && p.classList.contains('open');
+    }
+
     function getFocusedEl() {
         return tvFocusables[tvFocusIndex] || null;
     }
@@ -119,7 +124,34 @@
     }
 
     function goBack() {
+        var epPanelOpen = document.getElementById('ep-panel') && document.getElementById('ep-panel').classList.contains('open');
+        if (epPanelOpen) {
+            var epSeasonView = document.getElementById('ep-panel-season-view');
+            var epEpView = document.getElementById('ep-panel-episode-view');
+            if (epEpView && epEpView.style.display !== 'none') {
+                var backBtn = document.getElementById('ep-panel-ep-back');
+                if (backBtn) {
+                    backBtn.click();
+                    _focusLockUntil = Date.now() + 150;
+                    setTimeout(function () {
+                        _focusLockUntil = 0;
+                        refreshFocusables();
+                        if (tvFocusables.length) setFocus(0);
+                    }, 200);
+                    return;
+                }
+            }
+            var closeBtn = document.getElementById('ep-panel-close');
+            if (closeBtn) closeBtn.click();
+            setTimeout(function () {
+                _focusLockUntil = 0;
+                refreshFocusables();
+                if (tvFocusables.length) setFocus(0);
+            }, 200);
+            return;
+        }
         var sOpen = getSettingsOpen();
+        var epOpen = getEpPanelOpen();
         if (sOpen) {
             var subView = getActiveSubView();
             if (subView) {
@@ -182,9 +214,12 @@
     function refreshFocusables() {
         if (Date.now() < _focusLockUntil) return;
         var sOpen = getSettingsOpen();
-        var scope = sOpen
-            ? document.getElementById('settings-modal-wrap')
-            : document.getElementById('player-controls-wrapper');
+        var epPanelOpen = document.getElementById('ep-panel') && document.getElementById('ep-panel').classList.contains('open');
+        var scope = epPanelOpen
+            ? document.getElementById('ep-panel')
+            : sOpen
+                ? document.getElementById('settings-modal-wrap')
+                : document.getElementById('player-controls-wrapper');
         if (!scope) return;
 
         var vid = document.getElementById('v');
@@ -209,7 +244,7 @@
             return r.width > 0 && r.height > 0;
         });
 
-        if (!sOpen) {
+        if (!sOpen && !epPanelOpen) {
             var extras = ['btn-play', 'skip-segment-inner', 'next-ep-inner'];
             if (isPaused) extras.push('cf-skip-left', 'cf-skip-right');
             extras.forEach(function (eid) {
@@ -461,7 +496,7 @@
                     nudgeSlider(focused, code === TV_KEYS.RIGHT ? 1 : -1);
                     return;
                 }
-                if (!sOpen && tvFocusIndex < 0) {
+                if (!sOpen && !epOpen && tvFocusIndex < 0) {
                     doSkip(code === TV_KEYS.RIGHT ? 'right' : 'left', 1);
                     _skipLockUntil = Date.now() + 800;
                     return;
