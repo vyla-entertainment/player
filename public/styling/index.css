@@ -1291,6 +1291,13 @@ video {
     transform: scale(0.97);
 }
 
+#main-discord-btn {
+    color: var(--white-85);
+    background-color: var(--white-03);
+    padding: 10px 15px;
+    margin: 10px 0;
+}
+
 @keyframes viewFadeIn {
     from {
         opacity: 0;
@@ -1323,7 +1330,7 @@ video {
 
     #settings-panel {
         width: var(--settings-width-desktop);
-        max-height: var(--settings-max-h-desktop);
+        max-height: 65vh;
         border-radius: var(--settings-radius-desktop);
     }
 
@@ -1363,7 +1370,6 @@ video {
         width: var(--settings-width-landscape);
         max-width: 90vw;
         border-radius: var(--settings-radius-desktop);
-        max-height: var(--settings-max-h-landscape);
     }
 
     #settings-close-btn {
@@ -1415,7 +1421,7 @@ video {
 }
 
 .settings-tile {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--white-03);
     border: none;
     border-radius: 14px;
     padding: 18px var(--space-lg);
@@ -2593,7 +2599,7 @@ video {
     align-items: center;
     gap: var(--space-sm);
     padding: var(--space-md);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--white-03);
     border: none;
     border-radius: var(--space-sm);
     cursor: pointer;
@@ -2685,7 +2691,7 @@ video {
 .sub-bg-btn {
     flex: 1;
     padding: 9px var(--space-md);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--white-03);
     border: none;
     border-radius: 7px;
     color: var(--white-75);
@@ -3106,7 +3112,7 @@ video {
     align-items: center;
     justify-content: center;
     gap: var(--space-md);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--white-03);
     border-radius: var(--space-md);
     padding: var(--space-lg);
     margin-bottom: var(--space-sm);

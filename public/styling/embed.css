@@ -487,7 +487,7 @@
 
     #settings-modal-wrap {
         padding: 0 var(--space-md) max(var(--space-md), env(safe-area-inset-bottom, var(--space-md)));
-        max-height: 90vh;
+        max-height: 80vh;
         justify-content: flex-end;
     }
 
@@ -495,7 +495,7 @@
         isolation: isolate;
         -webkit-transform: translateZ(0);
         transform: translateZ(0);
-        min-height: calc(90vh);
+        min-height: 60vh;
         max-width: 94vw;
         flex-shrink: 1;
         min-height: 0;
