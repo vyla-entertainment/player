@@ -490,8 +490,9 @@ function play(raw, skipProxy, videoId) {
     var bufEl = document.getElementById('buf');
     var thumb = document.getElementById('thumb');
     var tCur = document.getElementById('t-cur');
-    var tDur = { textContent: '' };
     var tDur = document.getElementById('t-dur');
+    var tdCur = document.getElementById('td-cur');
+    var tdDur = document.getElementById('td-dur');
     var ci = document.getElementById('ci');
     var centerFlash = document.getElementById('center-flash');
     var cfSkipLeft = document.getElementById('cf-skip-left');
@@ -795,6 +796,8 @@ function play(raw, skipProxy, videoId) {
             thumb.style.left = 'calc(' + pct + '% - ' + (pct / 100 * 0) + 'px)';
             tCur.textContent = fmt(v.currentTime);
             tDur.textContent = fmt(v.duration);
+            if (tdCur) tdCur.textContent = fmt(v.currentTime);
+            if (tdDur) tdDur.textContent = fmt(v.duration);
             if (v.buffered.length) {
                 var bufEnd = 0;
                 for (var bi = 0; bi < v.buffered.length; bi++) {
