@@ -565,7 +565,8 @@ video {
     padding: 0 14px;
 }
 
-#t-cur {
+#t-cur,
+#t-dur {
     font-size: 1rem;
     font-weight: 600;
     color: var(--white-85);

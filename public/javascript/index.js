@@ -491,6 +491,7 @@ function play(raw, skipProxy, videoId) {
     var thumb = document.getElementById('thumb');
     var tCur = document.getElementById('t-cur');
     var tDur = { textContent: '' };
+    var tDur = document.getElementById('t-dur');
     var ci = document.getElementById('ci');
     var centerFlash = document.getElementById('center-flash');
     var cfSkipLeft = document.getElementById('cf-skip-left');
