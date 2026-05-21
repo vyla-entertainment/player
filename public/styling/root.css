@@ -22,9 +22,11 @@
     --controls-bg: linear-gradient(to top, var(--black-85) 0%, rgba(0, 0, 0, 0.45) 60%, transparent 100%);
     --title-bg: linear-gradient(to bottom, var(--black-70) 0%, transparent 100%);
     --menu-close-bg: rgba(0, 0, 0, 0.6);
+
+    --menu-bg-light: rgba(255, 255, 255, 0.92);
     --menu-bg: rgba(6, 6, 6, 0.6);
-    --menu-bg-strong: rgba(6, 6, 6, 0.6);
-    --menu-bg-stronger: rgba(6, 6, 6, 0.6);
+    --menu-bg-strong: rgba(0, 0, 0, 0.7);
+    --menu-bg-stronger: rgba(0, 0, 0, 0.8);
     --menu-blur: blur(10px) saturate(3);
     --menu-blur-strong: blur(20px) saturate(3);
     --menu-radius: 12px;
@@ -71,8 +73,8 @@
     --close-btn-radius: 14px;
 
     --toast-top: 28px;
-    --floating-btn-bottom: 84px;
-    --floating-btn-side: 20px;
+    --floating-btn-bottom: 100px;
+    --floating-btn-side: 10px;
 
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-spring: cubic-bezier(0.25, 1.4, 0.5, 1);

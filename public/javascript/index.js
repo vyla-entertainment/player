@@ -115,6 +115,7 @@ document.addEventListener('keydown', function (e) {
 
 var p = new URLSearchParams(location.search);
 var id = p.get('id'), s = p.get('season'), e = p.get('episode'), ap = p.get('ap');
+if (!id && location.pathname === '/') { location.replace('https://vyla.pages.dev'); }
 
 function isIOS() {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -278,6 +279,10 @@ if (id) {
                     if (s) metaTitle += ' \u00b7 S' + s + 'E' + (e || '1');
                     document.title = metaTitle;
                     setTitleWithTmdbImage(metaTitle, meta);
+                    if (s) {
+                        var epBadge = document.getElementById('ep-badge');
+                        if (epBadge) epBadge.textContent = 'S' + s + ' \u00b7 E' + (e || '1');
+                    }
                     if ('mediaSession' in navigator) {
                         var img = 'https://image.tmdb.org/t/p/w500' + (meta.poster_path || meta.backdrop_path);
                         navigator.mediaSession.metadata = new MediaMetadata({
@@ -809,16 +814,7 @@ function play(raw, skipProxy, videoId) {
         var r = wrap.getBoundingClientRect();
         var pct = (x !== undefined) ? Math.max(0, Math.min(1, (x - r.left) / r.width)) : _seekPct;
         v.currentTime = pct * (v.duration || 0);
-
-        if (nextEpReady && v.duration && v.duration >= 60) {
-            var remaining = v.duration - v.currentTime;
-            nextEpBtn.style.display = '';
-            if (remaining <= 300) {
-                nextEpBtn.classList.add('show');
-            } else {
-                nextEpBtn.classList.remove('show');
-            }
-        }
+        if (typeof window._checkAndShowNextEpBtn === 'function') window._checkAndShowNextEpBtn();
     }
 
     var tooltipTime = document.getElementById('tooltip-time');
@@ -845,16 +841,7 @@ function play(raw, skipProxy, videoId) {
         var secs = taps * 10;
         var delta = dir === 'left' ? -secs : secs;
         v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + delta));
-
-        if (nextEpReady && v.duration && v.duration >= 60) {
-            var remaining = v.duration - v.currentTime;
-            nextEpBtn.style.display = '';
-            if (remaining <= 300) {
-                nextEpBtn.classList.add('show');
-            } else {
-                nextEpBtn.classList.remove('show');
-            }
-        }
+        if (typeof window._checkAndShowNextEpBtn === 'function') window._checkAndShowNextEpBtn();
 
         var el = dir === 'left' ? skipL : skipR;
         var lbl = dir === 'left' ? skipLLbl : skipRLbl;
@@ -3124,37 +3111,86 @@ function play(raw, skipProxy, videoId) {
         }
     });
 
+    var nextEpBtn = s ? document.getElementById('next-ep-btn') : null;
+    var nextEpInner = s ? document.getElementById('next-ep-inner') : null;
+    var nextEpLabel = s ? document.getElementById('next-ep-label') : null;
+    var nextEpHref = null;
+    var nextEpReady = false;
+
+    function checkAndShowNextEpBtn() {
+        console.log('[NextEp] check called — btn:', !!nextEpBtn, 'ready:', nextEpReady, 'duration:', v.duration, 'current:', v.currentTime);
+        if (!nextEpBtn) { console.warn('[NextEp] nextEpBtn element not found'); return; }
+        if (!nextEpReady) { console.warn('[NextEp] nextEpReady is false'); return; }
+        if (!v.duration || v.duration < 60) { console.warn('[NextEp] duration invalid:', v.duration); return; }
+        var remaining = v.duration - v.currentTime;
+        console.log('[NextEp] remaining:', remaining, '— will show:', remaining <= 300);
+        nextEpBtn.style.display = '';
+        if (remaining <= 300) {
+            nextEpBtn.classList.add('show');
+        } else {
+            nextEpBtn.classList.remove('show');
+        }
+    }
+    window._checkAndShowNextEpBtn = checkAndShowNextEpBtn;
+    window._getNextEpBtn = function () { return nextEpBtn; };
+    window._isNextEpReady = function () { return nextEpReady; };
+
     if (s) {
+        nextEpBtn.style.display = 'none';
+
+        var nextE = parseInt(e || '1') + 1;
+        var nextS = parseInt(s);
+
+        console.log('[NextEp] fetching next episode — S' + nextS + 'E' + nextE);
+        fetch(baseURL + '/api/tv?id=' + id + '&season=' + nextS + '&episode=' + nextE)
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                console.log('[NextEp] fetch result:', d);
+                var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
+                nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
+                nextEpHref = location.pathname + '?id=' + id + '&season=' + nextS + '&episode=' + nextE + '&ap=1';
+                nextEpReady = true;
+                console.log('[NextEp] ready! href:', nextEpHref);
+                checkAndShowNextEpBtn();
+            })
+            .catch(function (err) { console.error('[NextEp] fetch error:', err); });
+
+        nextEpInner.addEventListener('click', function () {
+            if (nextEpHref) location.href = nextEpHref;
+        });
+
+        v.addEventListener('timeupdate', checkAndShowNextEpBtn);
+        v.addEventListener('durationchange', checkAndShowNextEpBtn);
+
         v.addEventListener('ended', function () {
-            var videoKey = (s ? videoId + '_s' + s + '_e' + (e || '1') : videoId);
+            var videoKey = (s ? id + '_s' + s + '_e' + (e || '1') : id);
             clearTimestamp(videoKey);
 
-            var nextE = parseInt(e || '1') + 1;
-            var nextS = parseInt(s);
+            var _nextE = parseInt(e || '1') + 1;
+            var _nextS = parseInt(s);
 
-            fetch(baseURL + '/api/tv?id=' + id + '&season=' + nextS + '&episode=' + nextE)
+            nextEpBtn.style.display = 'none';
+
+            fetch(baseURL + '/api/tv?id=' + id + '&season=' + _nextS + '&episode=' + _nextE)
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (d.error || !d.url) {
-                        fetch(baseURL + '/api/tv?id=' + id + '&season=' + (nextS + 1) + '&episode=1')
+                        fetch(baseURL + '/api/tv?id=' + id + '&season=' + (_nextS + 1) + '&episode=1')
                             .then(function (r) { return r.json(); })
                             .then(function (d2) {
                                 if (d2.error || !d2.url) return;
-
                                 var toast = document.getElementById('now-playing-toast');
                                 var title = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
-                                title += ' \u00b7 S' + (nextS + 1) + 'E1';
-
+                                title += ' \u00b7 S' + (_nextS + 1) + 'E1';
                                 toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
                                 toast.className = '';
-
                                 setTimeout(function () {
                                     toast.classList.add('enter');
                                     setTimeout(function () {
                                         toast.classList.remove('enter');
                                         toast.classList.add('exit');
                                         setTimeout(function () {
-                                            location.href = location.pathname + '?id=' + id + '&season=' + (nextS + 1) + '&episode=1&ap=1';
+                                            location.href = location.pathname + '?id=' + id + '&season=' + (_nextS + 1) + '&episode=1&ap=1';
                                         }, 800);
                                     }, 3800);
                                 }, 400);
@@ -3162,21 +3198,18 @@ function play(raw, skipProxy, videoId) {
                             .catch(function () { });
                         return;
                     }
-
                     var toast = document.getElementById('now-playing-toast');
                     var title = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-                    title += ' \u00b7 S' + nextS + 'E' + nextE;
-
+                    title += ' \u00b7 S' + _nextS + 'E' + _nextE;
                     toast.innerHTML = '<div class="np-glow"></div><div class="np-inner"><span class="np-label">Up Next</span><span class="np-title">\u201c' + title + '\u201d</span></div>';
                     toast.className = '';
-
                     setTimeout(function () {
                         toast.classList.add('enter');
                         setTimeout(function () {
                             toast.classList.remove('enter');
                             toast.classList.add('exit');
                             setTimeout(function () {
-                                location.href = location.pathname + '?id=' + id + '&season=' + nextS + '&episode=' + nextE + '&ap=1';
+                                location.href = location.pathname + '?id=' + id + '&season=' + _nextS + '&episode=' + _nextE + '&ap=1';
                             }, 800);
                         }, 3800);
                     }, 400);
@@ -3184,59 +3217,6 @@ function play(raw, skipProxy, videoId) {
                 .catch(function () { });
         });
 
-        var nextEpBtn = document.getElementById('next-ep-btn');
-        var nextEpInner = document.getElementById('next-ep-inner');
-        var nextEpLabel = document.getElementById('next-ep-label');
-        var nextEpHref = null;
-        var nextEpReady = false;
-
-        var nextE = parseInt(e || '1') + 1;
-        var nextS = parseInt(s);
-
-        setTimeout(function () {
-            fetch(baseURL + '/api/tv?id=' + id + '&season=' + nextS + '&episode=' + nextE)
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (d.error || !d.url) {
-                        return fetch(baseURL + '/api/tv?id=' + id + '&season=' + (nextS + 1) + '&episode=1')
-                            .then(function (r) { return r.json(); })
-                            .then(function (d2) {
-                                if (d2.error || !d2.url) return;
-                                var t = d2.meta ? (d2.meta.title || d2.meta.name || 'Unknown') : 'Unknown';
-                                nextEpLabel.textContent = 'S' + (nextS + 1) + ' E1 \u00b7 ' + t;
-                                nextEpHref = location.pathname + '?id=' + id + '&season=' + (nextS + 1) + '&episode=1&ap=1';
-                                nextEpReady = true;
-                            });
-                    }
-                    var t = d.meta ? (d.meta.title || d.meta.name || 'Unknown') : 'Unknown';
-                    nextEpLabel.textContent = 'S' + nextS + ' E' + nextE + ' \u00b7 ' + t;
-                    nextEpHref = location.pathname + '?id=' + id + '&season=' + nextS + '&episode=' + nextE + '&ap=1';
-                    nextEpReady = true;
-                })
-                .catch(function () { });
-        }, 1000);
-
-        nextEpInner.addEventListener('click', function () {
-            if (nextEpHref) location.href = nextEpHref;
-        });
-
-        v.addEventListener('timeupdate', function () {
-            if (!nextEpReady || !v.duration || v.duration < 60) return;
-            var remaining = v.duration - v.currentTime;
-            nextEpBtn.style.display = '';
-            if (remaining <= 300) {
-                nextEpBtn.classList.add('show');
-            } else {
-                nextEpBtn.classList.remove('show');
-            }
-        });
-
-        v.addEventListener('durationchange', function () {
-            if (!nextEpReady || !v.duration || v.duration < 60) return;
-            if (v.duration - v.currentTime <= 300) {
-                nextEpBtn.classList.add('show');
-            }
-        });
     }
 
     v.style.pointerEvents = 'none';

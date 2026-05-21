@@ -537,8 +537,8 @@ video {
     z-index: 50;
     padding: 5px 11px;
     border-radius: 7px;
-    backdrop-filter: blur(8px) saturate(10);
-    -webkit-backdrop-filter: blur(8px) saturate(10);
+    backdrop-filter: var(--menu-blur);
+    -webkit-backdrop-filter: var(--menu-blur);
 }
 
 #tooltip.show {
@@ -549,8 +549,8 @@ video {
     display: none;
     align-items: center;
     gap: var(--space-md);
-    backdrop-filter: blur(8px) saturate(10);
-    -webkit-backdrop-filter: blur(8px) saturate(10);
+    backdrop-filter: var(--menu-blur);
+    -webkit-backdrop-filter: var(--menu-blur);
     background: var(--menu-bg);
     border-radius: 100px;
     padding: 8px 12px;
@@ -575,7 +575,7 @@ video {
 #time-display {
     display: none;
     align-items: center;
-    font-size: 13px;
+    font-size: var(--ctrl-font-size);
     font-weight: 600;
     color: var(--white-85);
     white-space: nowrap;
@@ -772,6 +772,17 @@ video {
     }
 }
 
+#ep-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.45);
+    padding: 3px 9px;
+    border-radius: 100px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 #subtitle-display {
     position: absolute;
     left: 0;
@@ -849,11 +860,11 @@ video {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 9999;
-    background: rgba(0, 0, 0, 0.72);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    color: var(--white);
-    font-size: 14px;
+    background: var(--menu-bg-light);
+    backdrop-filter: var(--menu-blur);
+    -webkit-backdrop-filter: var(--menu-blur);
+    color: var(--black-85);
+    font-size: var(--ctrl-font-size);
     font-weight: 600;
     padding: 14px 24px;
     border-radius: 100px;
@@ -1198,6 +1209,50 @@ video {
     }
 }
 
+#next-ep-btn {
+    position: fixed;
+    bottom: var(--floating-btn-bottom);
+    right: var(--floating-btn-side);
+    z-index: 9000;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+    display: none;
+}
+
+#next-ep-btn.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    display: flex;
+}
+
+#next-ep-inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--menu-bg-light);
+    -webkit-backdrop-filter: var(--menu-blur);
+    backdrop-filter: var(--menu-blur);
+    color: var(--black-85);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 11px 20px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: transform 0.25s var(--ease-spring);
+}
+
+#next-ep-inner:hover {
+    transform: scale(1.05);
+}
+
+#next-ep-inner:active {
+    transform: scale(0.96);
+}
+
 #skip-segment-btn {
     position: fixed;
     bottom: var(--floating-btn-bottom);
@@ -1221,10 +1276,10 @@ video {
     display: flex;
     align-items: center;
     gap: var(--space-md);
-    background: var(--menu-bg);
+    background: var(--menu-bg-light);
     -webkit-backdrop-filter: var(--menu-blur);
     backdrop-filter: var(--menu-blur);
-    color: var(--white-85);
+    color: var(--black-85);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.02em;
